@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CPU Interrupt Handling — 3D Simulation</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#000; overflow:hidden; font-family:'Share Tech Mono', monospace; }
+canvas { display:block; position:fixed; top:0; left:0; }
+
+/* ─── HUD Shell ─────────────────────────────── */
+#hud { position:fixed; inset:0; pointer-events:none; z-index:10; }
+
+/* ─── Top Bar ───────────────────────────────── */
+#topbar {
+  position:absolute; top:0; left:0; right:0;
+  padding:10px 20px 8px;
+  background:linear-gradient(180deg,rgba(2,8,20,.95) 0%,transparent 100%);
+  display:flex; align-items:center; justify-content:space-between;
+  border-bottom:1px solid #0a1a35;
+}
+#title {
+  font-family:'Orbitron',sans-serif; font-size:.9rem; font-weight:900;
+  color:#4af; letter-spacing:3px;
+  text-shadow:0 0 18px #4af, 0 0 40px #4af5;
+}
+#sub { font-size:.58rem; color:#1a3a5a; letter-spacing:2px; margin-top:2px; }
+#corner { font-size:.56rem; color:#1a3040; text-align:right; line-height:1.9; letter-spacing:1px; }
+
+/* ─── Step Info Panel ───────────────────────── */
+#panel {
+  position:absolute; top:55px; left:50%; transform:translateX(-50%);
+  background:rgba(2,8,22,.92);
+  border:1px solid #1a3a6a44;
+  border-top:2px solid #4af;
+  border-radius:0 0 10px 10px;
+  padding:12px 28px 14px;
+  min-width:420px; max-width:700px;
+  text-align:center;
+  backdrop-filter:blur(12px);
+  box-shadow: 0 0 40px #4af1;
+}
+#snum  { font-size:.56rem; color:#2a5a8a; letter-spacing:3px; margin-bottom:3px; }
+#stitle {
+  font-family:'Orbitron',sans-serif; font-size:.92rem; font-weight:700;
+  color:#6cf; margin-bottom:5px;
+  text-shadow:0 0 10px #4af;
+}
+#sdesc { font-size:.74rem; color:#6a9ab0; line-height:1.65; }
+#sexample {
+  margin-top:8px; padding:7px 12px;
+  background:rgba(0,40,80,.5);
+  border-left:2px solid #4af;
+  border-radius:0 5px 5px 0;
+  font-size:.7rem; color:#8ab8d0; text-align:left; line-height:1.7;
+}
+
+/* ─── Progress ──────────────────────────────── */
+#progwrap { position:absolute; top:53px; left:0; right:0; height:2px; background:#020810; }
+#progbar  { height:100%; width:0%; background:linear-gradient(90deg,#4af,#0ff); transition:width .5s; box-shadow:0 0 8px #4af; }
+
+/* ─── Code Panel (left) ─────────────────────── */
+#codepanel {
+  position:absolute; top:55px; left:14px;
+  width:210px;
+  background:rgba(2,6,16,.92);
+  border:1px solid #1a2a4a;
+  border-radius:8px;
+  overflow:hidden;
+  backdrop-filter:blur(8px);
+}
+#codepanel .ctop {
+  font-size:.6rem; color:#2a5a8a; padding:5px 10px;
+  background:rgba(0,20,50,.6); border-bottom:1px solid #1a2a4a;
+  letter-spacing:2px;
+}
+#codelines { padding:8px 10px; }
+.cline {
+  font-size:.68rem; line-height:1.85; color:#4a7a9a;
+  transition:all .3s; border-radius:3px; padding:0 4px;
+}
+.cline.active { color:#0ff; background:rgba(0,180,255,.12); text-shadow:0 0 8px #0ff; }
+.cline.done   { color:#2a8a4a; }
+.cline.isr    { color:#fa6; }
+.cline.isr.active { color:#fc8; background:rgba(255,160,0,.12); text-shadow:0 0 8px #fa6; }
+.cline .arrow { color:#f44; margin-right:4px; }
+
+/* ─── Register Panel (right) ────────────────── */
+#regpanel {
+  position:absolute; top:55px; right:14px;
+  width:200px;
+  background:rgba(2,6,16,.92);
+  border:1px solid #1a2a4a;
+  border-radius:8px;
+  backdrop-filter:blur(8px);
+  overflow:hidden;
+}
+#regpanel .ctop {
+  font-size:.6rem; color:#2a5a8a; padding:5px 10px;
+  background:rgba(0,20,50,.6); border-bottom:1px solid #1a2a4a;
+  letter-spacing:2px;
+}
+.reg { display:flex; justify-content:space-between; align-items:center; padding:4px 10px; border-bottom:1px solid #0a1428; }
+.reg:last-child { border-bottom:none; }
+.rname { font-size:.64rem; color:#2a6a9a; }
+.rval  { font-size:.64rem; color:#6cf; font-weight:bold; transition:all .3s; }
+.rval.changed { color:#0ff; text-shadow:0 0 8px #0ff; }
+.rval.saved   { color:#fa6; text-shadow:0 0 8px #fa6; }
+
+/* ─── Stack Panel (bottom-right) ────────────── */
+#stackpanel {
+  position:absolute; bottom:72px; right:14px;
+  width:200px;
+  background:rgba(2,6,16,.92);
+  border:1px solid #1a2a4a;
+  border-radius:8px;
+  backdrop-filter:blur(8px);
+  overflow:hidden;
+}
+#stackpanel .ctop {
+  font-size:.6rem; color:#2a5a8a; padding:5px 10px;
+  background:rgba(0,20,50,.6); border-bottom:1px solid #1a2a4a;
+  letter-spacing:2px;
+}
+.sslot {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:4px 10px; border-bottom:1px solid #0a1428;
+  transition:all .35s;
+}
+.sslot:last-child { border-bottom:none; }
+.slabel { font-size:.62rem; color:#1a4a6a; }
+.sval   { font-size:.62rem; color:#1a4a6a; transition:all .35s; }
+.sslot.pushed .slabel { color:#4af; }
+.sslot.pushed .sval   { color:#0ff; text-shadow:0 0 6px #0ff; }
+
+/* ─── Controls ──────────────────────────────── */
+#ctrl {
+  position:absolute; bottom:16px; left:50%; transform:translateX(-50%);
+  pointer-events:all; display:flex; gap:8px;
+}
+.btn {
+  font-family:'Share Tech Mono',monospace; font-size:.75rem;
+  padding:8px 18px;
+  background:rgba(2,10,28,.92);
+  border:1px solid #1a3a6a55; color:#4af;
+  border-radius:4px; cursor:pointer; letter-spacing:1px;
+  transition:all .18s;
+}
+.btn:hover { background:rgba(0,120,255,.12); border-color:#4af; box-shadow:0 0 14px #4af4; color:#fff; }
+.btn:active { transform:scale(.96); }
+.btn.on { border-color:#f80; color:#fa6; background:rgba(28,12,0,.92); }
+
+/* ─── Scan Lines ─────────────────────────────── */
+#scan {
+  position:fixed; inset:0; pointer-events:none; z-index:5;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,100,255,.006) 3px,rgba(0,100,255,.006) 6px);
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="scan"></div>
+
+<div id="hud">
+
+  <!-- Top -->
+  <div id="topbar">
+    <div>
+      <div id="title">CPU INTERRUPT HANDLING</div>
+      <div id="sub">REAL-TIME 3D SIMULATION WITH EXAMPLE · THREE.JS</div>
+    </div>
+    <div id="corner">DRAG · ROTATE<br>SCROLL · ZOOM<br>RIGHT · PAN</div>
+  </div>
+
+  <div id="progwrap"><div id="progbar"></div></div>
+
+  <!-- Step panel -->
+  <div id="panel">
+    <div id="snum">STEP 0 / 9</div>
+    <div id="stitle">SYSTEM READY</div>
+    <div id="sdesc">CPU is initialised. All components ready. Press NEXT or AUTO PLAY to start.</div>
+    <div id="sexample" style="display:none"></div>
+  </div>
+
+  <!-- Program code panel -->
+  <div id="codepanel">
+    <div class="ctop">▶ MAIN PROGRAM</div>
+    <div id="codelines">
+      <div class="cline" id="c0">int x = 0;</div>
+      <div class="cline" id="c1">x = x + 10;</div>
+      <div class="cline" id="c2">print(x);</div>
+      <div class="cline" id="c3" style="margin-top:6px;border-top:1px solid #0a2a4a;padding-top:6px;color:#1a4a2a">// ISR starts here</div>
+      <div class="cline isr" id="c4">save_context();</div>
+      <div class="cline isr" id="c5">handle_keyboard();</div>
+      <div class="cline isr" id="c6">update_buffer();</div>
+      <div class="cline isr" id="c7">restore_context();</div>
+      <div class="cline isr" id="c8">RETI;</div>
+      <div class="cline" style="margin-top:6px;border-top:1px solid #0a2a4a;padding-top:6px;color:#1a4a2a">// back to main</div>
+      <div class="cline" id="c9">x = x * 2; <span style="color:#1a5a2a">// ← resumes</span></div>
+    </div>
+  </div>
+
+  <!-- Register panel -->
+  <div id="regpanel">
+    <div class="ctop">▶ CPU REGISTERS</div>
+    <div class="reg"><span class="rname">PC</span><span class="rval" id="rPC">0x0010</span></div>
+    <div class="reg"><span class="rname">SP</span><span class="rval" id="rSP">0xFF00</span></div>
+    <div class="reg"><span class="rname">AX</span><span class="rval" id="rAX">0x0000</span></div>
+    <div class="reg"><span class="rname">BX</span><span class="rval" id="rBX">0x0000</span></div>
+    <div class="reg"><span class="rname">FLAGS</span><span class="rval" id="rFL">0b0000</span></div>
+    <div class="reg"><span class="rname">IF</span><span class="rval" id="rIF" style="color:#0f0">ENABLED</span></div>
+    <div class="reg"><span class="rname">ISR</span><span class="rval" id="rISR" style="color:#1a4a6a">IDLE</span></div>
+  </div>
+
+  <!-- Stack panel -->
+  <div id="stackpanel">
+    <div class="ctop">▶ STACK MEMORY</div>
+    <div class="sslot" id="ss0"><span class="slabel">0xFF00</span><span class="sval">[ empty ]</span></div>
+    <div class="sslot" id="ss1"><span class="slabel">0xFEFC</span><span class="sval">[ empty ]</span></div>
+    <div class="sslot" id="ss2"><span class="slabel">0xFEF8</span><span class="sval">[ empty ]</span></div>
+    <div class="sslot" id="ss3"><span class="slabel">0xFEF4</span><span class="sval">[ empty ]</span></div>
+    <div class="sslot" id="ss4"><span class="slabel">0xFEF0</span><span class="sval">[ empty ]</span></div>
+  </div>
+
+  <!-- Controls -->
+  <div id="ctrl">
+    <button class="btn" onclick="go(-1)">◀ PREV</button>
+    <button class="btn" id="bauto" onclick="toggleAuto()">▶ AUTO PLAY</button>
+    <button class="btn" onclick="go(1)">NEXT ▶</button>
+    <button class="btn" onclick="resetAll()">↺ RESET</button>
+  </div>
+
+</div>
+
+<!-- Three.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  CPU INTERRUPT HANDLING — 3D SIMULATION
+//
+//  SCENARIO:
+//    Main program is running (int x = 0; x = x+10; print(x)...)
+//    Mid-execution: keyboard interrupt fires (IRQ1)
+//    CPU:
+//      1. Finishes current instruction
+//      2. Saves state (PC, FLAGS, AX, BX) to stack
+//      3. Jumps to ISR (keyboard handler)
+//      4. ISR runs: handle_keyboard(), update_buffer()
+//      5. RETI: pops state, resumes main program
+// ════════════════════════════════════════════════════════════════
+
+// ── Renderer ──────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+
+// ── Scene ─────────────────────────────────────────────────────
+const scene  = new THREE.Scene();
+scene.background = new THREE.Color(0x020810);
+scene.fog = new THREE.Fog(0x020810, 40, 100);
+
+// ── Camera ────────────────────────────────────────────────────
+const camera = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, 0.1, 200);
+camera.position.set(0, 18, 26);
+
+// ── Controls ──────────────────────────────────────────────────
+const orbit = new THREE.OrbitControls(camera, renderer.domElement);
+orbit.enableDamping = true; orbit.dampingFactor = 0.07;
+orbit.minDistance = 8; orbit.maxDistance = 55;
+orbit.target.set(0, 2, 0);
+
+const clock = new THREE.Clock();
+let T = 0;
+
+// ════════════════════════════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════════════════════════════
+
+// Standard material
+function SM(col, rough=0.55, metal=0.15, emCol=0, emInt=0.4) {
+  return new THREE.MeshStandardMaterial({ color: col, roughness: rough, metalness: metal, emissive: emCol, emissiveIntensity: emInt });
+}
+
+// Phong material
+function PM(col, emCol=0, shine=60) {
+  return new THREE.MeshPhongMaterial({ color: col, emissive: emCol, shininess: shine });
+}
+
+// Line material
+function LM(col) { return new THREE.LineBasicMaterial({ color: col }); }
+
+// Add edge lines to a mesh (as sibling, not child)
+function addEdges(parent, mesh, col) {
+  const ls = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), LM(col));
+  ls.position.copy(mesh.position);
+  ls.rotation.copy(mesh.rotation);
+  ls.scale.copy(mesh.scale);
+  parent.add(ls);
+  return ls;
+}
+
+// Floating text sprite
+function mkSprite(text, col='#4af', fontSize=20, sw=5, sh=0.55) {
+  const cv = document.createElement('canvas');
+  cv.width = 512; cv.height = 64;
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, 512, 64);
+  ctx.fillStyle = col;
+  ctx.font = `${fontSize}px "Share Tech Mono"`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.shadowColor = col; ctx.shadowBlur = 16;
+  ctx.fillText(text, 256, 32);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false }));
+  sp.scale.set(sw, sh, 1);
+  return sp;
+}
+
+// Tween list
+const TW = [];
+function tw(from, to, dur, cb, done) {
+  TW.push({ t: 0, from, to, dur, cb, done: done || null });
+}
+function tickTweens(dt) {
+  for (let i = TW.length - 1; i >= 0; i--) {
+    const t = TW[i];
+    t.t = Math.min(t.t + dt, t.dur);
+    const p = t.t / t.dur;
+    const e = p < 0.5 ? 2 * p * p : -1 + (4 - 2 * p) * p;
+    t.cb(t.from + (t.to - t.from) * e);
+    if (t.t >= t.dur) { if (t.done) t.done(); TW.splice(i, 1); }
+  }
+}
+
+// Pulse a mesh scale briefly
+function pulseMesh(mesh, amount=0.1) {
+  let t = 0;
+  const id = setInterval(() => {
+    t += 0.2;
+    mesh.scale.setScalar(1 + amount * Math.sin(t * Math.PI));
+    if (t >= 1) { clearInterval(id); mesh.scale.setScalar(1); }
+  }, 20);
+}
+
+// Flash a material emissive color N times
+function flashMat(mat3d, onColor, offColor, times, interval) {
+  let n = 0;
+  const id = setInterval(() => {
+    mat3d.emissive.setHex(n % 2 === 0 ? onColor : offColor);
+    if (++n >= times * 2) clearInterval(id);
+  }, interval);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  3D OBJECTS
+// ════════════════════════════════════════════════════════════════
+
+// Groups
+const ROOT       = new THREE.Group(); // everything
+const G_CPU      = new THREE.Group();
+const G_IO       = new THREE.Group();
+const G_MEM      = new THREE.Group();  // RAM / stack tower
+const G_SIGNAL   = new THREE.Group();
+const G_BUS      = new THREE.Group();
+
+// CPU parts
+let cpuBase, cpuBaseMat;
+let cpuDie,  cpuDieMat;
+let cpuALU,  cpuALUm;
+let cpuCU,   cpuCUm;
+let cpuPC,   cpuPCm;
+let cpuReg,  cpuRegm;
+let cpuIFU,  cpuIFUm;   // interrupt fetch unit
+let heatsinkFins = [];
+let fanBlades    = [];
+let fanAngle     = 0;
+
+// Platform (pedestal)
+let platform, platformMat;
+
+// I/O (keyboard)
+let kbBody, kbMat;
+let kbLED,  kbLEDm;
+let kbLight;
+
+// Memory tower (RAM/stack)
+let ramBody, ramMat;
+let stackSlots = [];
+let stackMats  = [];
+
+// Signal sphere + trail
+let sigSphere, sigSphereMat;
+let sigTrail   = [];   // afterimage spheres
+let sigMoving  = false;
+let sigWayPts  = [];
+let sigWayIdx  = 0;
+
+// Burst particles
+let burstParts = [];
+
+// Bus tubes
+let busLines = [];
+
+// Lights
+let cpuGlow, ioGlow, memGlow;
+
+// ════════════════════════════════════════════════════════════════
+//  BUILD SCENE
+// ════════════════════════════════════════════════════════════════
+function buildScene() {
+  scene.add(ROOT);
+  ROOT.add(G_CPU, G_IO, G_MEM, G_SIGNAL, G_BUS);
+
+  buildPlatform();
+  buildCPU();
+  buildKeyboard();
+  buildMemory();
+  buildBus();
+  buildSignal();
+  buildLights();
+  buildLabels();
+}
+
+// ── Platform / Pedestal ───────────────────────────────────────
+function buildPlatform() {
+  // Main slab
+  platformMat = SM(0x0d1a2a, 0.7, 0.2, 0x001a40, 0.3);
+  platform = new THREE.Mesh(new THREE.BoxGeometry(36, 1.0, 24), platformMat);
+  platform.position.set(0, -0.5, 0);
+  platform.receiveShadow = true;
+  ROOT.add(platform);
+
+  // Beveled edges (just edge lines for clarity)
+  ROOT.add(new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(36, 1.0, 24)),
+    LM(0x4af2)
+  )).position.set(0, -0.5, 0);
+
+  // Platform top surface grid
+  const gm = LM(0x4af08);
+  for (let x = -17; x <= 17; x += 1.5) {
+    const g = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(x, 0.02, -11), new THREE.Vector3(x, 0.02, 11)
+    ]);
+    ROOT.add(new THREE.Line(g, gm));
+  }
+  for (let z = -11; z <= 11; z += 1.5) {
+    const g = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-17, 0.02, z), new THREE.Vector3(17, 0.02, z)
+    ]);
+    ROOT.add(new THREE.Line(g, gm));
+  }
+
+  // Corner pillars
+  [[-17,-11],[17,-11],[-17,11],[17,11]].forEach(([x, z]) => {
+    const col = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.4, 0.4, 1.0, 12),
+      SM(0x1a3a5a, 0.3, 0.7)
+    );
+    col.position.set(x, -0.5, z);
+    ROOT.add(col);
+    // Gold cap
+    const cap = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.5, 0.4, 0.18, 12),
+      SM(0x8a6a22, 0.1, 0.9, 0x6a4a10, 0.4)
+    );
+    cap.position.set(x, 0.11, z);
+    ROOT.add(cap);
+  });
+
+  // Mounting traces on platform surface
+  const traceM = LM(0x4af15);
+  const tracePaths = [
+    [[-11,0.02,0],[0,0.02,0]],
+    [[0,0.02,0],[12,0.02,0]],
+    [[0,0.02,0],[0,0.02,-9]],
+    [[-11,0.02,-2],[-6,0.02,-2],[-6,0.02,0]],
+    [[12,0.02,-2],[6,0.02,-2],[6,0.02,0]],
+  ];
+  tracePaths.forEach(pts => {
+    const g = new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(...p)));
+    ROOT.add(new THREE.Line(g, traceM));
+  });
+}
+
+// ── CPU ───────────────────────────────────────────────────────
+function buildCPU() {
+  G_CPU.position.set(0, 0, 0);
+
+  // Package (black body) — flat chip on platform
+  const pkgMat = SM(0x0a0a0a, 0.4, 0.3, 0x001800, 0.3);
+  const pkg = new THREE.Mesh(new THREE.BoxGeometry(7, 0.6, 7), pkgMat);
+  pkg.position.y = 0.3; pkg.castShadow = true; pkg.receiveShadow = true;
+  G_CPU.add(pkg);
+  addEdges(G_CPU, pkg, 0x4af3);
+
+  // LGA pin array on bottom (cosmetic)
+  for (let px = -2; px <= 2; px++) {
+    for (let pz = -2; pz <= 2; pz++) {
+      const pin = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.06, 0.32, 6),
+        SM(0xccaa33, 0.1, 0.95)
+      );
+      pin.position.set(px * 1.0, -0.04, pz * 1.0);
+      G_CPU.add(pin);
+    }
+  }
+
+  // Silicon die on top
+  cpuDieMat = SM(0x002a14, 0.25, 0.05, 0x00ff88, 0.4);
+  cpuDie = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.35, 5.6), cpuDieMat);
+  cpuDie.position.y = 0.775; cpuDie.castShadow = true;
+  G_CPU.add(cpuDie);
+  addEdges(G_CPU, cpuDie, 0x0f84);
+
+  // Sub-blocks on die
+  const blocks = [
+    { id:'ALU', x:-1.3, z:-1.3, w:1.8, d:1.8, col:0x180028, em:0xaa00ff },
+    { id:'CU',  x: 1.3, z:-1.3, w:1.8, d:1.8, col:0x002218, em:0x00ff88 },
+    { id:'PC',  x:-1.3, z: 1.3, w:1.5, d:1.5, col:0x001828, em:0x0099ff },
+    { id:'REG', x: 1.3, z: 1.3, w:1.5, d:1.7, col:0x201800, em:0xffaa00 },
+    { id:'IFU', x: 0,   z: 0,   w:1.0, d:1.0, col:0x1a0010, em:0xff2244 }, // Interrupt Fetch Unit
+  ];
+  blocks.forEach(b => {
+    const bm = SM(b.col, 0.3, 0.05, b.em, 0.5);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(b.w, 0.3, b.d), bm);
+    mesh.position.set(b.x, 1.1, b.z); mesh.castShadow = true;
+    G_CPU.add(mesh);
+    addEdges(G_CPU, mesh, b.em);
+    // Circuit trace from sub-block to center
+    const g = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(b.x, 1.12, b.z), new THREE.Vector3(0, 1.12, 0)
+    ]);
+    G_CPU.add(new THREE.Line(g, LM(b.em + '4')));
+    if (b.id === 'ALU') { cpuALU = mesh; cpuALUm = bm; }
+    if (b.id === 'CU')  { cpuCU  = mesh; cpuCUm  = bm; }
+    if (b.id === 'PC')  { cpuPC  = mesh; cpuPCm  = bm; }
+    if (b.id === 'REG') { cpuReg = mesh; cpuRegm = bm; }
+    if (b.id === 'IFU') { cpuIFU = mesh; cpuIFUm = bm; }
+  });
+
+  // Heatsink
+  const hsBase = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.25, 5.2), SM(0x888888, 0.3, 0.85));
+  hsBase.position.y = 1.45; hsBase.castShadow = true;
+  G_CPU.add(hsBase);
+  for (let i = -5; i <= 5; i++) {
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(4.8, 1.1, 0.14), SM(0x999999, 0.22, 0.85));
+    fin.position.set(0, 2.1, i * 0.44); fin.castShadow = true;
+    G_CPU.add(fin);
+    heatsinkFins.push(fin);
+  }
+
+  // Fan assembly
+  const fanPlate = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.15, 32), SM(0x222222, 0.5, 0.4));
+  fanPlate.position.y = 2.75; G_CPU.add(fanPlate);
+  const fanHub = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.2, 12), SM(0x111111, 0.4, 0.5));
+  fanHub.position.y = 2.85; G_CPU.add(fanHub);
+  for (let i = 0; i < 8; i++) {
+    const angle = i * (Math.PI * 2 / 8);
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.07, 0.2), SM(0x333333, 0.4, 0.3));
+    blade.rotation.y = angle;
+    blade.position.set(Math.sin(angle) * 0.65, 2.86, Math.cos(angle) * 0.65);
+    G_CPU.add(blade);
+    fanBlades.push({ mesh: blade, angle });
+  }
+
+  // CPU glow light
+  cpuGlow = new THREE.PointLight(0x00ff88, 1.2, 14);
+  cpuGlow.position.set(0, 4, 0);
+  G_CPU.add(cpuGlow);
+}
+
+// ── Keyboard / I/O Device ─────────────────────────────────────
+function buildKeyboard() {
+  G_IO.position.set(-13, 0, -2);
+
+  kbMat = SM(0x080808, 0.5, 0.2, 0x1a0600, 0.3);
+  kbBody = new THREE.Mesh(new THREE.BoxGeometry(6, 1.4, 4.5), kbMat);
+  kbBody.position.y = 0.7; kbBody.castShadow = true; kbBody.receiveShadow = true;
+  G_IO.add(kbBody);
+  addEdges(G_IO, kbBody, 0xfa63);
+
+  // Keys (rows of small rectangles)
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 8; col++) {
+      const key = new THREE.Mesh(
+        new THREE.BoxGeometry(0.52, 0.2, 0.44),
+        SM(0x1a1a1a, 0.6, 0.1, 0x000000, 0)
+      );
+      key.position.set(-2.6 + col * 0.68, 1.42, -1.4 + row * 0.62);
+      G_IO.add(key);
+    }
+  }
+
+  // Status LED
+  kbLEDm = PM(0x440000, 0xff2200, 200);
+  kbLED = new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 14), kbLEDm);
+  kbLED.position.set(2.6, 1.52, 1.6);
+  G_IO.add(kbLED);
+
+  // USB cable stub
+  const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.5, 10), SM(0x111111, 0.7, 0.1));
+  cable.rotation.z = Math.PI / 2;
+  cable.position.set(4.5, 0.7, 0);
+  G_IO.add(cable);
+
+  kbLight = new THREE.PointLight(0xffaa22, 0.3, 8);
+  kbLight.position.set(0, 3, 0);
+  G_IO.add(kbLight);
+}
+
+// ── Memory / Stack Tower ───────────────────────────────────────
+function buildMemory() {
+  G_MEM.position.set(13, 0, 0);
+
+  // Base DIMM slot
+  const slot = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.3, 4.2), SM(0x111111, 0.4, 0.4));
+  slot.position.y = 0.15;
+  G_MEM.add(slot);
+
+  // RAM stick (tall green PCB)
+  ramMat = SM(0x1a4a1a, 0.7, 0.05, 0x0a2a0a, 0.5);
+  ramBody = new THREE.Mesh(new THREE.BoxGeometry(0.55, 7.0, 4.0), ramMat);
+  ramBody.position.y = 3.8; ramBody.castShadow = true;
+  G_MEM.add(ramBody);
+  addEdges(G_MEM, ramBody, 0x0f84);
+
+  // Gold fingers at bottom
+  for (let i = 0; i < 10; i++) {
+    const g = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.7, 0.24), SM(0xccaa33, 0.1, 0.95));
+    g.position.set(0, 0.45, -1.8 + i * 0.4);
+    G_MEM.add(g);
+  }
+
+  // Stack slots (8 chips on the RAM stick = stack frames)
+  const slotNames = ['FLAGS','PSW','BX','AX','PC+1','SPARE','SPARE','SPARE'];
+  for (let i = 0; i < 8; i++) {
+    const sm = SM(0x001122, 0.3, 0.1, 0x0077ff, 0.15);
+    sm.transparent = true; sm.opacity = 0.5;
+    stackMats.push(sm);
+    const chip = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.6, 3.2), sm);
+    chip.position.set(0, 1.2 + i * 0.82, 0);
+    chip.castShadow = true;
+    G_MEM.add(chip);
+    addEdges(G_MEM, chip, 0x0055ff22);
+    stackSlots.push(chip);
+  }
+
+  // Retention clip
+  [-1.6, 1.6].forEach(x => {
+    const clip = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.6, 4.2), SM(0x888888, 0.3, 0.5));
+    clip.position.set(x * 0.5, 0.45, 0);
+    G_MEM.add(clip);
+  });
+
+  memGlow = new THREE.PointLight(0x0077ff, 0, 10);
+  memGlow.position.set(0, 5, 0);
+  G_MEM.add(memGlow);
+}
+
+// ── Data Bus (connecting IO → CPU → MEM) ─────────────────────
+function buildBus() {
+  // IO → CPU bus
+  makeBusTube([-10, 0.4, -2], [0, 0.4, -3.5], 0x4af2, 0x4af1);
+  makeBusTube([-10, 0.4, -2], [0, 0.4, -3.5], 0x4af1, 0x4af08); // 2nd offset
+  // CPU → MEM bus
+  makeBusTube([3.5, 0.4, 0], [12.5, 0.4, 0], 0x4af2, 0x4af1);
+  // IRQ line (red dashed feel — just slightly offset)
+  makeBusTube([-10, 0.55, -2], [-0.5, 0.55, -0.5], 0xff224411, 0xff224408);
+}
+
+function makeBusTube(from, to, col, emCol) {
+  const pts = [new THREE.Vector3(...from), new THREE.Vector3(...to)];
+  const line = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(pts),
+    LM(col)
+  );
+  G_BUS.add(line);
+  busLines.push(line);
+}
+
+// ── Signal Sphere ─────────────────────────────────────────────
+function buildSignal() {
+  sigSphereMat = PM(0xff2244, 0xff0022, 200);
+  sigSphereMat.transparent = true; sigSphereMat.opacity = 0;
+  sigSphere = new THREE.Mesh(new THREE.SphereGeometry(0.28, 20, 20), sigSphereMat);
+  sigSphere.position.set(-13, 1.5, -2);
+  G_SIGNAL.add(sigSphere);
+
+  // Glow ring
+  const ringMat = PM(0xff0000, 0xff2200, 200);
+  ringMat.transparent = true; ringMat.opacity = 0;
+  sigSphere.add(new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.08, 8, 32), ringMat));
+
+  // Trail spheres
+  for (let i = 0; i < 6; i++) {
+    const tm = PM(0xff2244, 0xff0011, 100);
+    tm.transparent = true; tm.opacity = 0;
+    const ts = new THREE.Mesh(new THREE.SphereGeometry(0.18 - i * 0.02, 10, 10), tm);
+    ts.visible = false;
+    G_SIGNAL.add(ts);
+    sigTrail.push({ mesh: ts, mat: tm });
+  }
+
+  // Burst particles
+  const pGeo = new THREE.SphereGeometry(0.09, 6, 6);
+  for (let i = 0; i < 30; i++) {
+    const pm = PM(0xff2244, 0xff0011, 200);
+    pm.transparent = true; pm.opacity = 0;
+    const p = new THREE.Mesh(pGeo, pm);
+    p.visible = false;
+    G_SIGNAL.add(p);
+    burstParts.push({ mesh: p, vel: new THREE.Vector3(), life: 0, max: 0.8 });
+  }
+}
+
+// ── Lights ────────────────────────────────────────────────────
+function buildLights() {
+  // Ambient
+  scene.add(new THREE.AmbientLight(0x081828, 0.8));
+
+  // Main overhead
+  const sun = new THREE.DirectionalLight(0xcce8ff, 1.0);
+  sun.position.set(6, 24, 12);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -22; sun.shadow.camera.right = 22;
+  sun.shadow.camera.top  =  16; sun.shadow.camera.bottom=-16;
+  scene.add(sun);
+
+  // Fill
+  const fill = new THREE.DirectionalLight(0x102030, 0.4);
+  fill.position.set(-8, 10, -8);
+  scene.add(fill);
+
+  // Under-rim glow (platform bottom)
+  const rim = new THREE.PointLight(0x002244, 0.8, 22);
+  rim.position.set(0, -2.5, 0);
+  scene.add(rim);
+}
+
+// ── Labels ────────────────────────────────────────────────────
+function buildLabels() {
+  // CPU
+  const lCPU = mkSprite('CPU', '#4af', 26, 4, 0.55);
+  lCPU.position.set(0, 5.2, 0); ROOT.add(lCPU);
+
+  const lbls = [
+    { text:'ALU',      pos:[-1.3, 2.1,-1.3], col:'#aa44ff', sz:16, sw:2.2 },
+    { text:'CTRL UNIT',pos:[ 1.3, 2.1,-1.3], col:'#00ff88', sz:14, sw:2.8 },
+    { text:'PC',       pos:[-1.3, 2.1, 1.3], col:'#0099ff', sz:16, sw:1.6 },
+    { text:'REG',      pos:[ 1.3, 2.1, 1.3], col:'#ffaa00', sz:16, sw:1.8 },
+    { text:'IFU',      pos:[ 0,   2.1, 0  ], col:'#ff2244', sz:16, sw:1.6 },
+  ];
+  lbls.forEach(l => {
+    const sp = mkSprite(l.text, l.col, l.sz, l.sw);
+    sp.position.set(...l.pos); ROOT.add(sp);
+  });
+
+  // I/O
+  const lIO = mkSprite('KEYBOARD / I-O', '#fa6', 20, 4.5, 0.5);
+  lIO.position.set(-13, 4.0, -2); ROOT.add(lIO);
+
+  // Memory
+  const lMEM = mkSprite('STACK / RAM', '#4af', 20, 4, 0.5);
+  lMEM.position.set(13, 6.0, 0); ROOT.add(lMEM);
+
+  // Bus label
+  const lBUS = mkSprite('DATA BUS (IRQ LINE)', '#4af5', 15, 4.5, 0.4);
+  lBUS.position.set(-6, 1.6, -3); ROOT.add(lBUS);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  STEP DEFINITIONS
+//  Real scenario: main program running, keyboard interrupt fires
+// ════════════════════════════════════════════════════════════════
+
+function burst(pos, color) {
+  burstParts.forEach(p => {
+    p.mesh.visible = true;
+    p.mesh.position.copy(pos);
+    p.mesh.material.color.setHex(color);
+    p.mesh.material.emissive.setHex(color);
+    p.mesh.material.opacity = 1;
+    const th = Math.random() * Math.PI * 2, ph = Math.random() * Math.PI;
+    const sp = 0.06 + Math.random() * 0.12;
+    p.vel.set(Math.sin(ph) * Math.cos(th) * sp, (0.05 + Math.random() * 0.08), Math.sin(ph) * Math.sin(th) * sp);
+    p.life = 0; p.max = 0.5 + Math.random() * 0.4;
+  });
+}
+
+function setReg(id, val, cls='changed') {
+  const el = document.getElementById('r'+id);
+  if (!el) return;
+  el.textContent = val;
+  el.className = 'rval ' + cls;
+  setTimeout(() => el.className = 'rval', 1200);
+}
+
+function setStack(idx, val, pushed=true) {
+  const el = document.getElementById('ss'+idx);
+  if (!el) return;
+  el.querySelector('.sval').textContent = pushed ? val : '[ empty ]';
+  el.className = 'sslot' + (pushed ? ' pushed' : '');
+}
+
+function setCode(ids, cls) {
+  ['c0','c1','c2','c3','c4','c5','c6','c7','c8','c9'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.classList.remove('active','done');
+      if (ids.includes(id)) el.classList.add(cls);
+    }
+  });
+}
+
+function markDone(ids) {
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.classList.remove('active'); el.classList.add('done'); }
+  });
+}
+
+function showExample(html) {
+  const el = document.getElementById('sexample');
+  el.style.display = 'block';
+  el.innerHTML = html;
+}
+function hideExample() {
+  document.getElementById('sexample').style.display = 'none';
+}
+
+// CPU color setters
+function setCPU(body, emBody, subEm, glowCol, glowInt) {
+  cpuDieMat.emissive.setHex(body);
+  cpuDieMat.emissiveIntensity = 0.45;
+  [cpuALUm, cpuCUm, cpuPCm, cpuRegm].forEach(m => m.emissive.setHex(subEm));
+  cpuGlow.color.setHex(glowCol);
+  cpuGlow.intensity = glowInt;
+}
+
+// ── STEP 0 : Idle ─────────────────────────────────────────────
+function step0() {
+  setCPU(0x00ff88, 0x00ff88, 0x004422, 0x00ff88, 0.9);
+  cpuDieMat.emissiveIntensity = 0.35;
+
+  kbMat.emissive.setHex(0x000000);
+  kbLEDm.emissive.setHex(0x440000); kbLEDm.emissiveIntensity = 0.4;
+  kbLight.intensity = 0.2; kbLight.color.setHex(0xffaa22);
+
+  ramMat.emissive.setHex(0x0a2a0a); ramMat.emissiveIntensity = 0.4;
+  stackMats.forEach(m => { m.emissive.setHex(0x001133); m.emissiveIntensity = 0.15; m.opacity = 0.45; });
+  memGlow.intensity = 0;
+
+  busLines.forEach(l => l.material.color.setHex(0x4af1));
+
+  sigSphereMat.opacity = 0; sigSphere.visible = false; sigMoving = false;
+
+  cpuIFUm.emissive.setHex(0x1a0010); cpuIFUm.emissiveIntensity = 0.3;
+
+  setCode([], '');
+  hideExample();
+  // Reset HUD registers
+  setReg('PC','0x0010',''); setReg('SP','0xFF00',''); setReg('AX','0x0000','');
+  setReg('BX','0x0000',''); setReg('FL','0b0000','');
+  document.getElementById('rIF').textContent='ENABLED'; document.getElementById('rIF').style.color='#0f0';
+  document.getElementById('rISR').textContent='IDLE'; document.getElementById('rISR').style.color='#1a4a6a';
+  for(let i=0;i<5;i++) setStack(i,'',false);
+}
+
+// ── STEP 1 : Program Running ───────────────────────────────────
+function step1() {
+  setCPU(0x00ff88, 0x00ff88, 0x004422, 0x00ff88, 1.1);
+  // ALU and PC active
+  cpuALUm.emissive.setHex(0x662299); cpuALUm.emissiveIntensity = 0.7;
+  cpuPCm.emissive.setHex(0x004488); cpuPCm.emissiveIntensity = 0.7;
+  setCode(['c0','c1','c2'], 'active');
+  setReg('PC','0x0012'); setReg('AX','0x000A');
+  showExample(`<b style="color:#6cf">Scenario:</b> CPU running main program.<br>
+  Executing: <span style="color:#0ff">x = 0 → x = x + 10 → preparing print(x)</span><br>
+  AX = 0x000A (10 decimal). No interrupt yet.`);
+  pulseMesh(cpuALU);
+}
+
+// ── STEP 2 : Interrupt Fires ───────────────────────────────────
+function step2() {
+  // Keyboard fires IRQ
+  kbMat.emissive.setHex(0x441100); kbMat.emissiveIntensity = 0.6;
+  kbLEDm.emissive.setHex(0xff0000); kbLEDm.emissiveIntensity = 1.0;
+  kbLight.intensity = 2.5; kbLight.color.setHex(0xff4400);
+  pulseMesh(kbBody, 0.07);
+  burst(new THREE.Vector3(-13, 1.8, -2), 0xff2244);
+
+  // Signal sphere appears at keyboard
+  sigSphere.visible = true; sigSphereMat.opacity = 1.0;
+  sigSphere.position.set(-13, 1.8, -2);
+
+  setCode(['c1'], 'active'); // mid-instruction
+  showExample(`<b style="color:#f64">KEY PRESSED!</b> User pressed a key on the keyboard.<br>
+  Keyboard controller asserts <span style="color:#f44">IRQ1 line HIGH</span>.<br>
+  CPU is currently executing <span style="color:#0ff">x = x + 10</span> — must finish it first.`);
+}
+
+// ── STEP 3 : Signal Travels to CPU ────────────────────────────
+function step3() {
+  // Animate signal sphere along IRQ bus
+  busLines.forEach(l => l.material.color.setHex(0xff440088));
+  sigWayPts = [
+    new THREE.Vector3(-13, 1.8, -2),
+    new THREE.Vector3(-8, 1.6, -2.5),
+    new THREE.Vector3(-3, 1.4, -1.5),
+    new THREE.Vector3(0, 1.4, 0),
+  ];
+  sigWayIdx = 0; sigMoving = true;
+  sigSphere.visible = true; sigSphereMat.opacity = 1.0;
+
+  showExample(`<span style="color:#f44">IRQ signal</span> travels from keyboard along the interrupt request line.<br>
+  CPU's <span style="color:#f44">Interrupt Flag (IF) = 1</span> → CPU is listening for interrupts.<br>
+  Signal reaches CPU interrupt pin...`);
+}
+
+// ── STEP 4 : CPU Acknowledges ─────────────────────────────────
+function step4() {
+  sigSphere.visible = false; sigMoving = false;
+  busLines.forEach(l => l.material.color.setHex(0x4af1));
+
+  // CPU turns orange — interrupt acknowledged
+  setCPU(0xff5500, 0xff5500, 0xff3300, 0xff6600, 2.2);
+  cpuIFUm.emissive.setHex(0xff0000); cpuIFUm.emissiveIntensity = 1.2;
+  pulseMesh(cpuDie, 0.09);
+  pulseMesh(cpuIFU, 0.15);
+  burst(new THREE.Vector3(0, 2, 0), 0xff5500);
+
+  // CPU IF set to 0 (disable further interrupts)
+  setReg('PC','0x0014'); // finishes instruction, advances PC
+  setReg('IF','CHECKING'); document.getElementById('rIF').style.color='#fa6';
+  document.getElementById('rISR').textContent='TRIGGERED'; document.getElementById('rISR').style.color='#f44';
+  markDone(['c0']);
+
+  showExample(`CPU completes current instruction (<span style="color:#0ff">x = x+10</span>).<br>
+  <b style="color:#fa6">Interrupt acknowledged!</b> CPU sets IF=0 to prevent nested interrupts.<br>
+  Control Unit signals: "Save everything and jump to ISR!"`);
+}
+
+// ── STEP 5 : Save State → Stack Push ──────────────────────────
+function step5() {
+  setCPU(0xff5500, 0xff4400, 0xff2200, 0xff6600, 2.5);
+  // Light up CPU → MEM bus
+  busLines.slice(2).forEach(l => l.material.color.setHex(0x0088ff88));
+
+  const saveData = [
+    {slot:0, val:'FLAGS=0001', name:'FLAGS', reg:'FL', regVal:'0b0001'},
+    {slot:1, val:'PSW=0x8A',  name:'PSW',   reg:null, regVal:null},
+    {slot:2, val:'BX=0x0000', name:'BX',    reg:'BX', regVal:'0x0000'},
+    {slot:3, val:'AX=0x000A', name:'AX',    reg:'AX', regVal:'SAVED'},
+    {slot:4, val:'PC=0x0014', name:'PC',    reg:'PC', regVal:'SAVED'},
+  ];
+
+  saveData.forEach((d, i) => {
+    setTimeout(() => {
+      // Light up stack slot
+      stackMats[i].emissive.setHex(0x00aaff); stackMats[i].emissiveIntensity = 0.9; stackMats[i].opacity = 1.0;
+      memGlow.intensity = 1.2; memGlow.color.setHex(0x0088ff);
+      // Bounce
+      tw(stackSlots[i].position.y + 0.3, stackSlots[i].position.y, 0.35, v => stackSlots[i].position.y = v);
+      // Update HUD stack
+      setStack(i < 5 ? i : 4, d.val, true);
+      // Update register display
+      if (d.reg) setReg(d.reg, d.regVal, 'saved');
+      // Update SP
+      setReg('SP', '0xFEF' + (4-i)*4, 'changed');
+      burst(new THREE.Vector3(13, 1.2 + i * 0.82, 0), 0x0088ff);
+    }, i * 300);
+  });
+
+  showExample(`CPU pushes context onto stack in order:<br>
+  <span style="color:#0ff">FLAGS → PSW → BX → AX → PC (return address)</span><br>
+  Stack pointer (SP) decrements with each PUSH.<br>
+  Now CPU can safely jump to ISR — state is preserved!`);
+}
+
+// ── STEP 6 : Fetch ISR Address ────────────────────────────────
+function step6() {
+  // PC flashes — looking up interrupt vector table
+  cpuPCm.emissive.setHex(0x00ccff); cpuPCm.emissiveIntensity = 1.2;
+  flashMat(cpuPCm, 0x00ffff, 0x002244, 6, 120);
+  pulseMesh(cpuPC, 0.15);
+
+  setReg('PC','0x3080'); // ISR address
+  document.getElementById('rISR').textContent='ISR@0x3080'; document.getElementById('rISR').style.color='#0ff';
+
+  showExample(`CPU looks up <span style="color:#fa6">Interrupt Vector Table (IVT)</span>.<br>
+  IRQ1 (keyboard) → ISR address = <span style="color:#0ff">0x3080</span><br>
+  PC is loaded with ISR address. CPU will jump there next cycle.`);
+}
+
+// ── STEP 7 : ISR Executing ────────────────────────────────────
+function step7() {
+  // CPU purple = ISR running
+  cpuDieMat.emissive.setHex(0xbb00ff); cpuDieMat.emissiveIntensity = 0.55;
+  cpuALUm.emissive.setHex(0xee00ff);  cpuALUm.emissiveIntensity = 0.9;
+  cpuCUm.emissive.setHex(0xcc00ff);   cpuCUm.emissiveIntensity = 0.9;
+  cpuPCm.emissive.setHex(0x8800ff);   cpuPCm.emissiveIntensity = 0.8;
+  cpuRegm.emissive.setHex(0xaa00ff);  cpuRegm.emissiveIntensity = 0.8;
+  cpuIFUm.emissive.setHex(0xff00ff);  cpuIFUm.emissiveIntensity = 1.0;
+  cpuGlow.color.setHex(0xcc00ff); cpuGlow.intensity = 2.8;
+
+  // I/O communicates back
+  kbLEDm.emissive.setHex(0x8800ff); kbLEDm.emissiveIntensity = 0.7;
+  kbLight.color.setHex(0x8800ff); kbLight.intensity = 1.0;
+  busLines.forEach(l => l.material.color.setHex(0xcc00ff44));
+
+  setCode(['c4','c5','c6','c7','c8'], 'active');
+  markDone(['c0','c1','c2']);
+
+  pulseMesh(cpuDie, 0.08);
+  burst(new THREE.Vector3(0, 2.5, 0), 0xcc00ff);
+
+  showExample(`<b style="color:#c6f">ISR RUNNING at 0x3080</b><br>
+  1. <span style="color:#fa6">save_context()</span> — additional local saves<br>
+  2. <span style="color:#fa6">handle_keyboard()</span> — reads key scan code from port 0x60<br>
+  3. <span style="color:#fa6">update_buffer()</span> — writes char to keyboard buffer<br>
+  4. <span style="color:#fa6">restore_context()</span> — prepares to return<br>
+  5. <span style="color:#fa6">RETI</span> — Return from Interrupt instruction`);
+}
+
+// ── STEP 8 : Pop State — Restore ──────────────────────────────
+function step8() {
+  // CPU back to orange briefly while restoring
+  setCPU(0xff5500, 0xff4400, 0xff2200, 0xff6600, 1.8);
+
+  // Pop stack slots top to bottom
+  for (let i = 4; i >= 0; i--) {
+    const delay = (4 - i) * 280;
+    setTimeout(() => {
+      stackMats[i].emissive.setHex(0x001133); stackMats[i].emissiveIntensity = 0.15; stackMats[i].opacity = 0.45;
+      tw(stackSlots[i].position.y - 0.28, stackSlots[i].position.y, 0.3, v => stackSlots[i].position.y = v);
+      setStack(i < 5 ? i : 4, '', false);
+    }, delay);
+  }
+  setTimeout(() => { memGlow.intensity = 0; busLines.slice(2).forEach(l=>l.material.color.setHex(0x4af1)); }, 4*280+300);
+
+  // Registers restored
+  setReg('PC','0x0014'); // returns to saved PC
+  setReg('AX','0x000A','changed');
+  setReg('BX','0x0000','changed');
+  setReg('FL','0b0000','changed');
+  setReg('SP','0xFF00','changed');
+  document.getElementById('rIF').textContent='RE-ENABLED'; document.getElementById('rIF').style.color='#0f0';
+  document.getElementById('rISR').textContent='COMPLETE'; document.getElementById('rISR').style.color='#0f0';
+
+  setCode(['c7','c8'], 'active');
+
+  showExample(`<b style="color:#0ff">RETI executes!</b><br>
+  Stack POP order: <span style="color:#fa6">PC → AX → BX → PSW → FLAGS</span> (LIFO)<br>
+  PC restored to <span style="color:#0ff">0x0014</span> (next instruction after interrupt point).<br>
+  IF re-enabled. SP back to 0xFF00. All registers intact!`);
+}
+
+// ── STEP 9 : Resume Normal Execution ──────────────────────────
+function step9() {
+  setCPU(0x00ff88, 0x00ff88, 0x004422, 0x00ff88, 1.2);
+  cpuDieMat.emissiveIntensity = 0.35;
+
+  kbMat.emissive.setHex(0x000000);
+  kbLEDm.emissive.setHex(0x440000); kbLEDm.emissiveIntensity = 0.4;
+  kbLight.intensity = 0.2; kbLight.color.setHex(0xffaa22);
+
+  busLines.forEach(l => l.material.color.setHex(0x4af1));
+  memGlow.intensity = 0;
+
+  setCode(['c9'], 'active');
+  markDone(['c0','c1','c2','c3','c4','c5','c6','c7','c8']);
+  setReg('PC','0x0016');
+
+  pulseMesh(cpuDie, 0.08);
+  burst(new THREE.Vector3(0, 2.5, 0), 0x00ff88);
+
+  showExample(`<b style="color:#0f8">NORMAL EXECUTION RESUMED!</b><br>
+  Program continues from <span style="color:#0ff">0x0014: x = x * 2</span><br>
+  AX still = 0x000A (10). Interrupt was completely transparent to main program.<br>
+  <span style="color:#4af">The keyboard character is now in the buffer — both tasks complete!</span>`);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  STEP TABLE
+// ════════════════════════════════════════════════════════════════
+const STEPS = [
+  { title:'SYSTEM READY',                   desc:'CPU, Keyboard I/O, and Stack RAM mounted on the 3D platform. All idle. IF (Interrupt Flag) = 1, listening for IRQs.',                 run:step0 },
+  { title:'MAIN PROGRAM RUNNING',           desc:'CPU executes: int x=0 → x=x+10 → preparing print(x). ALU and PC active. No interrupt yet.',                                           run:step1 },
+  { title:'KEYBOARD INTERRUPT FIRES (IRQ1)',desc:'User presses a key. Keyboard controller asserts IRQ1 HIGH. CPU is mid-instruction and must finish before responding.',                 run:step2 },
+  { title:'IRQ SIGNAL TRAVELS TO CPU',      desc:'Interrupt request signal travels along the IRQ bus from keyboard to CPU interrupt pin. CPU detects it at end of current instruction.', run:step3 },
+  { title:'CPU ACKNOWLEDGES — FINISH INSTR',desc:'CPU completes x=x+10 (cannot stop mid-instruction). Acknowledges interrupt. Sets IF=0 to block nested IRQs. IFU activates.',         run:step4 },
+  { title:'SAVE STATE → PUSH TO STACK',     desc:'CPU pushes FLAGS, PSW, BX, AX and return PC onto the stack. Stack pointer decrements. State fully preserved before ISR runs.',        run:step5 },
+  { title:'FETCH ISR ADDRESS FROM IVT',     desc:'CPU reads Interrupt Vector Table: IRQ1 → address 0x3080. PC is updated to ISR start address. CPU will jump there next.',              run:step6 },
+  { title:'ISR EXECUTING (KEYBOARD HANDLER)',desc:'CPU jumps to 0x3080, runs ISR: reads key scan code, stores char in keyboard buffer. RETI instruction at end returns from ISR.',       run:step7 },
+  { title:'RESTORE STATE ← POP FROM STACK', desc:'RETI pops PC, AX, BX, PSW, FLAGS from stack in LIFO order. All registers restored exactly. IF re-enabled. Stack pointer back.',      run:step8 },
+  { title:'RESUME NORMAL — TRANSPARENT!',   desc:'Main program resumes at exactly 0x0014. Continues: x = x * 2. Program had no idea the interrupt even happened. 100% transparent.',   run:step9 },
+];
+
+// ════════════════════════════════════════════════════════════════
+//  RENDER LOOP
+// ════════════════════════════════════════════════════════════════
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  T += dt;
+  tickTweens(dt);
+
+  // Fan rotation
+  fanAngle += dt * 4;
+  fanBlades.forEach((b, i) => {
+    const a = fanAngle + b.angle;
+    b.mesh.rotation.y = a;
+    b.mesh.position.set(Math.sin(a) * 0.65, b.mesh.position.y, Math.cos(a) * 0.65);
+  });
+
+  // Signal sphere movement
+  if (sigMoving && sigWayPts.length > 1) {
+    const target = sigWayPts[Math.min(sigWayIdx + 1, sigWayPts.length - 1)];
+    sigSphere.position.lerp(target, 0.06);
+    // Update trail
+    sigTrail.forEach((t, i) => {
+      t.mesh.visible = sigSphere.visible;
+      t.mesh.position.lerp(sigSphere.position, 0.03 + i * 0.015);
+      t.mat.opacity = Math.max(0, 0.5 - i * 0.08);
+    });
+    if (sigSphere.position.distanceTo(target) < 0.15) {
+      sigWayIdx = Math.min(sigWayIdx + 1, sigWayPts.length - 1);
+      if (sigWayIdx >= sigWayPts.length - 1) sigMoving = false;
+    }
+  }
+
+  // Signal pulse
+  if (sigSphere.visible) {
+    sigSphere.scale.setScalar(1 + 0.22 * Math.sin(T * 9));
+    sigSphereMat.opacity = Math.max(0, 0.85 + 0.15 * Math.sin(T * 12));
+  }
+
+  // Burst particles
+  burstParts.forEach(p => {
+    if (!p.mesh.visible) return;
+    p.life += dt;
+    p.mesh.position.addScaledVector(p.vel, 1);
+    p.vel.multiplyScalar(0.88);
+    const a = Math.max(0, 1 - p.life / p.max);
+    p.mesh.material.opacity = a;
+    p.mesh.scale.setScalar(Math.max(0.01, a));
+    if (p.life >= p.max) p.mesh.visible = false;
+  });
+
+  // LED blink
+  if (kbLEDm) kbLEDm.emissiveIntensity = 0.5 + 0.5 * Math.sin(T * 3.5);
+
+  // CPU sub-block gentle float
+  [cpuALU, cpuCU, cpuPC, cpuReg, cpuIFU].forEach((b, i) => {
+    if (b) b.position.y = 1.1 + 0.018 * Math.sin(T * 1.1 + i * 0.8);
+  });
+
+  // Stack shimmer if lit
+  stackMats.forEach((m, i) => {
+    if (m.emissiveIntensity > 0.5)
+      m.emissiveIntensity = 0.75 + 0.25 * Math.sin(T * 4 + i * 0.6);
+  });
+
+  orbit.update();
+  renderer.render(scene, camera);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  NAVIGATION
+// ════════════════════════════════════════════════════════════════
+let curStep = -1, autoOn = false, autoTmr = null;
+
+function go(d) {
+  const n = curStep + d;
+  if (n < 0) { curStep = -1; step0(); updateHUD(); return; }
+  if (n >= STEPS.length) return;
+  curStep = n; STEPS[curStep].run(); updateHUD();
+}
+
+function toggleAuto() { autoOn ? stopAuto() : startAuto(); }
+
+function startAuto() {
+  autoOn = true;
+  document.getElementById('bauto').textContent = '⏸ PAUSE';
+  document.getElementById('bauto').classList.add('on');
+  if (curStep < STEPS.length - 1) go(1);
+  autoTmr = setInterval(() => { curStep < STEPS.length - 1 ? go(1) : stopAuto(); }, 3200);
+}
+
+function stopAuto() {
+  autoOn = false; clearInterval(autoTmr); autoTmr = null;
+  document.getElementById('bauto').textContent = '▶ AUTO PLAY';
+  document.getElementById('bauto').classList.remove('on');
+}
+
+function resetAll() {
+  stopAuto(); curStep = -1; step0(); updateHUD();
+}
+
+function updateHUD() {
+  const tot = STEPS.length;
+  document.getElementById('progbar').style.width = (curStep < 0 ? 0 : (curStep + 1) / tot * 100) + '%';
+  if (curStep < 0) {
+    document.getElementById('snum').textContent   = 'STEP 0 / ' + tot;
+    document.getElementById('stitle').textContent = 'SYSTEM READY';
+    document.getElementById('sdesc').textContent  = 'CPU initialised. Press NEXT or AUTO PLAY to begin the interrupt simulation.';
+    hideExample();
+  } else {
+    const s = STEPS[curStep];
+    document.getElementById('snum').textContent   = `STEP ${curStep + 1} / ${tot}`;
+    document.getElementById('stitle').textContent = s.title;
+    document.getElementById('sdesc').textContent  = s.desc;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  RESIZE
+// ════════════════════════════════════════════════════════════════
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ════════════════════════════════════════════════════════════════
+//  BOOT
+// ════════════════════════════════════════════════════════════════
+buildScene();
+updateHUD();
+animate();
+</script>
+</body>
+</html>

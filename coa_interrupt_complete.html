@@ -1,0 +1,445 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+#root{background:#07101d;border-radius:12px;overflow:hidden;font-family:sans-serif;}
+
+/* TOP NAV */
+#topnav{background:#09131f;border-bottom:1px solid #1a2a3a;padding:6px 10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.tnbtn{padding:4px 10px;border-radius:16px;border:1px solid;font-size:9.5px;font-weight:500;cursor:pointer;transition:all .2s;background:transparent;white-space:nowrap;}
+.tnbtn.sel{color:#fff!important;}
+#chapter-label{font-size:9px;font-weight:500;color:#4a6a8a;margin-right:4px;white-space:nowrap;}
+
+/* MAIN AREA = left panel + right scene */
+#main{display:flex;height:560px;}
+
+/* LEFT SIDEBAR — step list */
+#sidebar{width:190px;flex-shrink:0;background:#060e1a;border-right:1px solid #0f1e2e;overflow-y:auto;padding:8px 0;}
+#sidebar::-webkit-scrollbar{width:3px;}
+#sidebar::-webkit-scrollbar-thumb{background:#1a2a3a;border-radius:2px;}
+.step-item{padding:6px 10px;cursor:pointer;border-left:3px solid transparent;transition:all .2s;}
+.step-item:hover{background:#0c1826;}
+.step-item.active{border-left-color:#378ADD;background:#0c1826;}
+.step-item.done{border-left-color:#1D9E75;}
+.si-num{font-size:8px;font-weight:500;color:#2a4a6a;margin-bottom:2px;}
+.si-title{font-size:9px;font-weight:500;color:#6a9abf;line-height:1.35;}
+.si-desc{font-size:8px;color:#2a4a6a;line-height:1.3;margin-top:2px;}
+.step-item.active .si-num{color:#378ADD;}
+.step-item.active .si-title{color:#85B7EB;}
+.step-item.active .si-desc{color:#4a7a9a;}
+.step-item.done .si-title{color:#1D9E75;}
+
+/* RIGHT SCENE */
+#scene{flex:1;position:relative;background:linear-gradient(rgba(55,138,221,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(55,138,221,.025) 1px,transparent 1px),#07101d;background-size:34px 34px,34px 34px,100%;overflow:hidden;}
+
+/* BUS — top */
+#bus{position:absolute;top:8px;left:12px;right:12px;height:32px;border-radius:7px;background:#0a1522;border:1px solid #1a2a3a;display:flex;align-items:center;gap:5px;padding:0 10px;}
+.bl{flex:1;height:5px;border-radius:3px;position:relative;overflow:hidden;}
+.bl::before{content:attr(data-l);position:absolute;top:-13px;left:0;right:0;text-align:center;font-size:7px;font-weight:500;white-space:nowrap;}
+#bld{background:#378ADD22;}#bld::before{color:#85B7EB;}
+#bla{background:#63992222;}#bla::before{color:#97C459;}
+#blc{background:#7F77DD22;}#blc::before{color:#aba5f0;}
+.bl.on{animation:bp .5s linear infinite;}
+#bld.on{background:#378ADD;}#bla.on{background:#639922;}#blc.on{background:#7F77DD;}
+@keyframes bp{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* BOXES */
+.box{position:absolute;border-radius:8px;border:1.5px solid;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:border-color .3s,box-shadow .3s;cursor:pointer;user-select:none;padding:4px;}
+.bt{font-size:9.5px;font-weight:500;line-height:1.3;}
+.bs{font-size:8px;opacity:.55;line-height:1.3;margin-top:2px;}
+
+/* CPU */
+#cpu{width:185px;height:170px;top:168px;left:50%;transform:translateX(-50%);background:#08112a;border-color:#378ADD33;color:#85B7EB;}
+#cpu.on{border-color:#378ADD;box-shadow:0 0 28px #378ADD44;}
+.cp{position:absolute;border-radius:5px;border:1px solid;font-size:7.5px;font-weight:500;text-align:center;padding:2px 4px;transition:all .3s;line-height:1.3;}
+#cu{top:9px;left:8px;width:78px;height:30px;background:#040c1c;border-color:#378ADD2a;color:#6aa3e0;}
+#alu{top:9px;right:8px;width:78px;height:30px;background:#040c1c;border-color:#63992222;color:#8abf55;}
+#reg{top:46px;left:8px;width:78px;height:30px;background:#040c1c;border-color:#7F77DD22;color:#aba5f0;}
+#pcc{top:46px;right:8px;width:78px;height:30px;background:#040c1c;border-color:#BA751722;color:#d4a055;}
+#spk{top:83px;left:8px;width:169px;height:26px;background:#040c1c;border-color:#D85A3022;color:#e8916a;}
+#flg{top:115px;left:8px;width:169px;height:22px;background:#040c1c;border-color:#1D9E7522;color:#5DCAA5;}
+#cpu-tag{position:absolute;bottom:5px;left:0;right:0;text-align:center;font-size:7.5px;color:#378ADD55;font-weight:500;}
+.cp.on{color:#fff!important;}
+#cu.on{border-color:#378ADD;box-shadow:0 0 6px #378ADD66;}
+#alu.on{border-color:#639922;box-shadow:0 0 6px #63992266;}
+#reg.on{border-color:#7F77DD;box-shadow:0 0 6px #7F77DD66;}
+#pcc.on{border-color:#BA7517;box-shadow:0 0 6px #BA751766;}
+#spk.on{border-color:#D85A30;box-shadow:0 0 6px #D85A3066;}
+#flg.on{border-color:#1D9E75;box-shadow:0 0 6px #1D9E7566;}
+
+/* other boxes */
+#ram{width:120px;height:68px;top:52px;right:14px;background:#051408;border-color:#63992222;color:#8abf55;}
+#ram.on{border-color:#639922;box-shadow:0 0 20px #63992244;}
+#ivt{width:120px;height:60px;top:130px;right:14px;background:#050a18;border-color:#378ADD22;color:#6aa3e0;}
+#ivt.on{border-color:#378ADD;box-shadow:0 0 20px #378ADD44;}
+#isr{width:112px;height:58px;top:52px;right:145px;background:#0e051a;border-color:#7F77DD22;color:#aba5f0;}
+#isr.on{border-color:#7F77DD;box-shadow:0 0 20px #7F77DD44;}
+#intc{width:120px;height:65px;bottom:52px;right:14px;background:#180404;border-color:#E24B4A22;color:#f08888;}
+#intc.on{border-color:#E24B4A;box-shadow:0 0 20px #E24B4A44;}
+#dma{width:112px;height:58px;bottom:52px;right:145px;background:#040f18;border-color:#378ADD22;color:#6aa3e0;}
+#dma.on{border-color:#378ADD;box-shadow:0 0 20px #378ADD44;}
+
+/* Stack */
+#sframes{position:absolute;top:52px;right:276px;width:85px;display:flex;flex-direction:column;gap:2px;}
+.sf{height:14px;border-radius:3px;border:1px solid #D85A3015;background:transparent;font-size:7px;font-weight:500;color:#e8916a22;display:flex;align-items:center;justify-content:center;transition:all .3s;opacity:0;transform:translateY(-3px);}
+.sf.pushed{opacity:1;transform:translateY(0);border-color:#D85A30;background:#150802;color:#e8916a;}
+
+/* Left devices */
+.iobox{background:#110804;border-color:#E24B4A22;color:#f08888;}
+.iobox.on{border-color:#E24B4A;box-shadow:0 0 15px #E24B4A44;}
+#io1{width:88px;height:42px;top:52px;left:12px;}
+#io2{width:88px;height:42px;top:103px;left:12px;}
+#io3{width:88px;height:42px;top:154px;left:12px;}
+.swbox{background:#060c16;border-color:#7F77DD22;color:#aba5f0;}
+.swbox.on{border-color:#7F77DD;box-shadow:0 0 15px #7F77DD44;}
+#sw1{width:88px;height:42px;top:260px;left:12px;}
+#sw2{width:88px;height:42px;top:311px;left:12px;}
+#nmibox{width:88px;height:42px;top:205px;left:12px;background:#160e04;border-color:#EF9F2722;color:#EF9F27;}
+#nmibox.on{border-color:#EF9F27;box-shadow:0 0 15px #EF9F2744;}
+
+/* section labels */
+.slbl{position:absolute;left:4px;font-size:6.5px;font-weight:500;color:#2a4060;letter-spacing:.4px;text-transform:uppercase;}
+
+/* INFO CARD — bottom */
+#infocard{position:absolute;bottom:8px;left:12px;right:12px;background:rgba(6,14,26,.95);border:1px solid #0f2030;border-radius:7px;padding:6px 10px;display:flex;gap:10px;align-items:flex-start;}
+#icnum{width:22px;height:22px;border-radius:50%;background:#378ADD;color:#fff;font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .3s;margin-top:1px;}
+.ict{font-size:10px;font-weight:500;color:#85B7EB;line-height:1.3;}
+.icd{font-size:8.5px;color:rgba(100,150,200,.7);line-height:1.4;margin-top:2px;}
+.icterm{font-size:8px;color:#1D9E75;margin-top:3px;font-weight:500;}
+
+/* Legend */
+#leg{position:absolute;top:50px;left:50%;transform:translateX(-50%);display:flex;gap:10px;}
+.li{display:flex;align-items:center;gap:3px;font-size:7px;color:rgba(100,140,180,.6);}
+.ld{width:10px;height:3px;border-radius:2px;}
+</style>
+
+<div id="root">
+<div id="topnav">
+  <span id="chapter-label">COA Chapter:</span>
+  <button class="tnbtn sel" id="btn-basic"  onclick="sel('basic')"  style="color:#378ADD;border-color:#378ADD44;">Interrupt Basics</button>
+  <button class="tnbtn"     id="btn-types"  onclick="sel('types')"  style="color:#E24B4A;border-color:#E24B4A44;">HW Interrupt &amp; INTR</button>
+  <button class="tnbtn"     id="btn-nmi"    onclick="sel('nmi')"    style="color:#EF9F27;border-color:#EF9F2744;">NMI / TRAP</button>
+  <button class="tnbtn"     id="btn-sw"     onclick="sel('sw')"     style="color:#7F77DD;border-color:#7F77DD44;">Software INT</button>
+  <button class="tnbtn"     id="btn-poll"   onclick="sel('poll')"   style="color:#1D9E75;border-color:#1D9E7544;">Polling vs Vectored</button>
+  <button class="tnbtn"     id="btn-dma"    onclick="sel('dma')"    style="color:#85B7EB;border-color:#85B7EB44;">DMA</button>
+  <button class="tnbtn"     id="btn-prior"  onclick="sel('prior')"  style="color:#D85A30;border-color:#D85A3044;">Priority &amp; Daisy</button>
+</div>
+
+<div id="main">
+<div id="sidebar" id="steplist"></div>
+
+<div id="scene">
+  <div id="bus">
+    <div class="bl" id="bld" data-l="DATA BUS"></div>
+    <div class="bl" id="bla" data-l="ADDRESS BUS"></div>
+    <div class="bl" id="blc" data-l="CONTROL BUS"></div>
+  </div>
+  <div id="leg">
+    <div class="li"><div class="ld" style="background:#E24B4A"></div>IRQ signal</div>
+    <div class="li"><div class="ld" style="background:#378ADD"></div>Data flow</div>
+    <div class="li"><div class="ld" style="background:#639922"></div>Control</div>
+    <div class="li"><div class="ld" style="background:#7F77DD"></div>ISR/handler</div>
+    <div class="li"><div class="ld" style="background:#D85A30"></div>Stack ops</div>
+    <div class="li"><div class="ld" style="background:#EF9F27"></div>NMI</div>
+  </div>
+
+  <div class="slbl" style="top:47px;">I/O Devices</div>
+  <div class="box iobox" id="io1" onclick="sendPrompt('Explain IRQ from keyboard in COA')"><div class="bt">Keyboard</div><div class="bs">IRQ device</div></div>
+  <div class="box iobox" id="io2" onclick="sendPrompt('How does disk generate interrupt in COA')"><div class="bt">Disk / Timer</div><div class="bs">IRQ device</div></div>
+  <div class="box iobox" id="io3" onclick="sendPrompt('What is I/O interface in COA')"><div class="bt">I/O Interface</div><div class="bs">Device port</div></div>
+  <div class="slbl" style="top:200px;">NMI</div>
+  <div class="box" id="nmibox" onclick="sendPrompt('Explain NMI and TRAP interrupt in COA')"><div class="bt">NMI / TRAP</div><div class="bs">Non-maskable</div></div>
+  <div class="slbl" style="top:255px;">Software</div>
+  <div class="box swbox" id="sw1" onclick="sendPrompt('What is software interrupt in COA')"><div class="bt">Software INT</div><div class="bs">INT instruction</div></div>
+  <div class="box swbox" id="sw2" onclick="sendPrompt('What is an exception in COA')"><div class="bt">Exception</div><div class="bs">Internal fault</div></div>
+
+  <div class="box" id="cpu">
+    <div class="cp" id="cu">Control Unit</div>
+    <div class="cp" id="alu">ALU</div>
+    <div class="cp" id="reg">Registers</div>
+    <div class="cp" id="pcc">PC (Program Counter)</div>
+    <div class="cp" id="spk">SP (Stack Pointer)</div>
+    <div class="cp" id="flg">Flag / Status Register</div>
+    <div id="cpu-tag">CPU</div>
+  </div>
+
+  <div class="box" id="isr" onclick="sendPrompt('What is ISR interrupt service routine in COA')"><div class="bt">ISR</div><div class="bs">Service Routine</div></div>
+  <div class="box" id="ram" onclick="sendPrompt('How is stack used in interrupt handling COA')"><div class="bt">Main Memory</div><div class="bs">Stack / IVT</div></div>
+  <div class="box" id="ivt" onclick="sendPrompt('What is interrupt vector table in COA')"><div class="bt">IVT</div><div class="bs">Vector Table</div></div>
+  <div class="box" id="intc" onclick="sendPrompt('What is programmable interrupt controller PIC in COA')"><div class="bt">INT Controller</div><div class="bs">PIC / Priority</div></div>
+  <div class="box" id="dma" onclick="sendPrompt('Explain DMA controller and how it works in COA')"><div class="bt">DMA Controller</div><div class="bs">Direct Mem Access</div></div>
+
+  <div id="sframes">
+    <div class="sf" id="sf0">flags saved</div>
+    <div class="sf" id="sf1">PC saved</div>
+    <div class="sf" id="sf2">regs saved</div>
+  </div>
+
+  <canvas id="ac" style="position:absolute;inset:0;pointer-events:none;"></canvas>
+  <div id="infocard">
+    <div id="icnum">1</div>
+    <div style="flex:1">
+      <div class="ict" id="ict">—</div>
+      <div class="icd" id="icd">—</div>
+      <div class="icterm" id="icterm"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--color-background-secondary);border-top:.5px solid var(--color-border-tertiary);border-radius:0 0 12px 12px;flex-wrap:wrap;">
+  <button onclick="prevStep()" style="padding:3px 10px;border-radius:5px;border:.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-primary);font-size:10px;cursor:pointer;">← Prev</button>
+  <div id="dots" style="display:flex;gap:3px;flex:1;justify-content:center;flex-wrap:wrap;"></div>
+  <button onclick="nextStep()" style="padding:3px 10px;border-radius:5px;border:.5px solid #378ADD;background:#081a30;color:#85B7EB;font-size:10px;font-weight:500;cursor:pointer;">Next →</button>
+  <button id="abtn" onclick="toggleAuto()" style="padding:3px 10px;border-radius:5px;border:.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-primary);font-size:10px;cursor:pointer;">▶ Auto</button>
+  <button onclick="resetAll()" style="padding:3px 10px;border-radius:5px;border:.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-tertiary);font-size:10px;cursor:pointer;">↺ Reset</button>
+</div>
+</div>
+
+<script>
+const C = {
+  basic:{
+    color:'#378ADD', label:'Interrupt Basics (COA)',
+    steps:[
+      {n:1, title:"What is an interrupt?",              desc:"An interrupt is a signal to the CPU that an event needs immediate attention — CPU stops current task, handles event, then resumes.",  term:"COA Term: Interrupt = asynchronous event that breaks normal fetch-decode-execute cycle", active:[], sig:null, bus:[], parts:['cu'], stack:[]},
+      {n:2, title:"Fetch-Decode-Execute + Interrupt cycle", desc:"After every instruction, CPU checks interrupt flag. If interrupt pending AND interrupts enabled → CPU enters interrupt cycle.", term:"COA Term: Interrupt cycle = 5th step added to basic machine cycle", active:['cpu'], sig:null, bus:['ctrl'], parts:['cu','alu'], stack:[]},
+      {n:3, title:"CPU checks IF (Interrupt Flag)",     desc:"IF=1 means interrupts are enabled. IF=0 means masked. NMI ignores this flag. This is controlled by EI/DI instructions (8085: EI/DI).", term:"COA Term: IF flag in PSW/Status Register = interrupt enable bit", active:['cpu'], sig:null, bus:[], parts:['flg','cu'], stack:[]},
+      {n:4, title:"Interrupt request detected",         desc:"Device asserts interrupt line. CPU detects it at end of current instruction — never mid-instruction (ensures atomicity).", term:"COA Term: IRQ = Interrupt Request. Atomicity = instruction completes fully before interrupt", active:['io1','cpu'], sig:{f:'io1',t:'cpu',c:'#E24B4A',l:'IRQ'}, bus:['ctrl'], parts:['cu'], stack:[]},
+      {n:5, title:"CPU saves Program Counter (PC)",     desc:"CPU pushes current PC (return address) onto stack. This is the address of next instruction to resume after ISR returns.", term:"COA Term: Return address = PC value saved. Stack = LIFO memory structure used for saving state", active:['cpu','ram'], sig:{f:'cpu',t:'ram',c:'#D85A30',l:'PUSH PC'}, bus:['data','addr'], parts:['pcc','spk'], stack:[1]},
+      {n:6, title:"CPU saves PSW / Flags",              desc:"Status register (flags: carry, zero, sign etc.) is also saved so ISR cannot corrupt the main program's arithmetic state.", term:"COA Term: PSW = Program Status Word. Contains condition codes / flags saved before ISR", active:['cpu','ram'], sig:{f:'cpu',t:'ram',c:'#D85A30',l:'PUSH PSW'}, bus:['data','addr'], parts:['flg','spk'], stack:[2,1]},
+      {n:7, title:"CPU loads ISR address into PC",      desc:"CPU fetches ISR starting address from Interrupt Vector Table (IVT) and loads it into PC — this redirects execution to the handler.", term:"COA Term: IVT = Interrupt Vector Table. Each entry holds starting address of an ISR", active:['cpu','ivt'], sig:{f:'ivt',t:'cpu',c:'#378ADD',l:'ISR ADDR'}, bus:['addr'], parts:['cu','pcc'], stack:[2,1]},
+      {n:8, title:"ISR executes",                       desc:"Interrupt Service Routine runs — reads device data, clears interrupt flag on device, processes the event completely.", term:"COA Term: ISR = Interrupt Service Routine. Also called interrupt handler or service subroutine", active:['isr'], sig:{f:'cpu',t:'isr',c:'#7F77DD',l:'EXECUTE'}, bus:['data'], parts:['alu','reg'], stack:[2,1]},
+      {n:9, title:"ISR restores PSW and PC (IRET)",     desc:"At end of ISR, IRET instruction pops saved PSW and PC from stack — CPU returns exactly to where it was interrupted.", term:"COA Term: IRET = Interrupt Return. Restores machine state. Equivalent to 8085 RET from ISR", active:['cpu','ram'], sig:{f:'ram',t:'cpu',c:'#D85A30',l:'POP'}, bus:['data','addr'], parts:['pcc','flg','spk'], stack:[]},
+      {n:10,title:"CPU resumes interrupted program",    desc:"PC now holds return address. CPU continues from exact point of interruption as if nothing happened — transparent to the program.", term:"COA Term: Transparent interrupt handling = main program unaware it was interrupted", active:['cpu'], sig:null, bus:['data','addr'], parts:['cu','alu','reg','pcc'], stack:[]},
+    ]
+  },
+  types:{
+    color:'#E24B4A', label:'Hardware Interrupt & INTR (COA)',
+    steps:[
+      {n:1, title:"Hardware interrupt — external event",  desc:"Generated by I/O device outside CPU. Device asserts IRQ line when it needs service (data ready, operation complete, error).", term:"COA Term: Hardware interrupt = externally generated asynchronous interrupt. Examples: keyboard, disk, timer", active:['io1'], sig:{f:'io1',t:'intc',c:'#E24B4A',l:'IRQ'}, bus:['ctrl'], parts:[], stack:[]},
+      {n:2, title:"INTR pin — maskable interrupt",        desc:"INTR (Interrupt Request) is the general maskable interrupt pin. CPU only responds if IF flag=1. Can be disabled by software using DI/CLI.", term:"COA Term: INTR = maskable hardware interrupt. 8085 equivalent: INTR pin. x86: INTR line to PIC", active:['intc'], sig:{f:'intc',t:'cpu',c:'#E24B4A',l:'INTR'}, bus:['ctrl'], parts:['cu'], stack:[]},
+      {n:3, title:"CPU completes current instruction",    desc:"CPU never interrupts mid-instruction. Current instruction must complete fully. Guarantees program state is consistent when saving.", term:"COA Term: Instruction boundary = interrupt only checked after each complete instruction", active:['cpu'], sig:null, bus:['data','addr'], parts:['cu','alu'], stack:[]},
+      {n:4, title:"CPU sends INTA — acknowledge",         desc:"CPU asserts INTA (Interrupt Acknowledge) signal back to the controller. This is a hardware handshake confirming interrupt is accepted.", term:"COA Term: INTA = Interrupt Acknowledge. Hardware handshake signal. Same in 8085 and x86", active:['cpu','intc'], sig:{f:'cpu',t:'intc',c:'#639922',l:'INTA'}, bus:['ctrl'], parts:['cu'], stack:[]},
+      {n:5, title:"Device puts vector number on data bus", desc:"On receiving INTA, the device/controller places an 8-bit interrupt vector number on the data bus. CPU reads this to identify which device.", term:"COA Term: Interrupt vector = number identifying the source/type. Used to index into IVT", active:['intc','cpu'], sig:{f:'intc',t:'cpu',c:'#378ADD',l:'VEC #'}, bus:['data'], parts:['cu'], stack:[]},
+      {n:6, title:"CPU looks up IVT for ISR address",     desc:"Vector number × 4 = address in IVT. CPU reads 4-byte ISR address from IVT. This is called vectored interrupt handling.", term:"COA Term: Vectored interrupt = interrupt that provides its own vector to find handler. IVT base at 0000H (8085)", active:['cpu','ivt'], sig:{f:'cpu',t:'ivt',c:'#378ADD',l:'INDEX'}, bus:['addr'], parts:['cu','pcc'], stack:[]},
+      {n:7, title:"Save PC and PSW to stack",             desc:"CPU pushes return address (PC) and program status word (PSW/flags) to stack memory before jumping to ISR.", term:"COA Term: Context saving = storing CPU state before ISR. Minimum: PC + PSW (flags)", active:['cpu','ram'], sig:{f:'cpu',t:'ram',c:'#D85A30',l:'PUSH'}, bus:['data','addr','ctrl'], parts:['pcc','flg','spk'], stack:[2,1,0]},
+      {n:8, title:"Jump to ISR — handler executes",       desc:"PC loaded with ISR address. ISR runs, services the device (reads data, clears flags), then executes IRET to return.", term:"COA Term: ISR must be re-entrant if nested interrupts allowed. Must end with IRET/RETI", active:['isr','io1'], sig:{f:'cpu',t:'isr',c:'#7F77DD',l:'JUMP'}, bus:['addr'], parts:['alu','reg'], stack:[2,1,0]},
+      {n:9, title:"EOI — End of Interrupt to controller", desc:"Before IRET, ISR sends EOI (End of Interrupt) signal to PIC. This allows controller to accept new interrupts of same or lower priority.", term:"COA Term: EOI = End of Interrupt. Required in PIC-based systems so controller resets its state", active:['isr','intc'], sig:{f:'isr',t:'intc',c:'#639922',l:'EOI'}, bus:['ctrl'], parts:['cu'], stack:[2,1,0]},
+      {n:10,title:"IRET — return to main program",        desc:"IRET pops PC and PSW from stack. CPU resumes exactly where it was interrupted. Interrupt cycle complete.", term:"COA Term: Full interrupt latency = time from IRQ to first ISR instruction. Measured in clock cycles", active:['cpu','ram'], sig:{f:'ram',t:'cpu',c:'#D85A30',l:'POP'}, bus:['data','addr'], parts:['pcc','flg','spk'], stack:[]},
+    ]
+  },
+  nmi:{
+    color:'#EF9F27', label:'NMI / TRAP (COA)',
+    steps:[
+      {n:1, title:"NMI — Non-Maskable Interrupt",         desc:"NMI cannot be disabled by software. IF flag has no effect. Used for critical events — power failure, memory error, hardware watchdog.", term:"COA Term: NMI = Non-Maskable Interrupt. Always accepted regardless of IF flag. 8085: TRAP pin", active:['nmibox'], sig:{f:'nmibox',t:'cpu',c:'#EF9F27',l:'NMI'}, bus:['ctrl'], parts:[], stack:[]},
+      {n:2, title:"TRAP in 8085 = NMI equivalent",        desc:"TRAP is 8085's NMI. It is both edge AND level triggered (most reliable). Fixed vector at 0024H. Cannot be masked. Highest priority.", term:"COA Term: TRAP = 8085 NMI equivalent. Edge+level triggered. Vector: 0024H. Priority = highest", active:['cpu'], sig:null, bus:[], parts:['cu'], stack:[]},
+      {n:3, title:"CPU cannot defer NMI",                  desc:"CPU must handle NMI immediately after current instruction. Unlike INTR, no INTA handshake needed. CPU directly fetches handler.", term:"COA Term: NMI has no masking, no INTA, no vector from device — uses fixed predetermined vector", active:['cpu','ivt'], sig:{f:'cpu',t:'ivt',c:'#EF9F27',l:'FIXED VEC'}, bus:['addr'], parts:['cu','pcc'], stack:[]},
+      {n:4, title:"State saved — PC and PSW pushed",       desc:"Even for NMI, CPU saves return address and flags to stack before jumping. This ensures recovery is possible after NMI handler.", term:"COA Term: Even NMI saves context — difference is only in triggering and masking, not state saving", active:['cpu','ram'], sig:{f:'cpu',t:'ram',c:'#D85A30',l:'PUSH'}, bus:['data','addr'], parts:['pcc','flg','spk'], stack:[2,1,0]},
+      {n:5, title:"NMI handler executes",                  desc:"Handler diagnoses the cause (power fail? parity error?), attempts to save critical data, logs error, may attempt recovery.", term:"COA Term: NMI handler must complete quickly — another NMI is blocked until IRET in some CPUs", active:['isr'], sig:{f:'cpu',t:'isr',c:'#EF9F27',l:'JUMP'}, bus:['addr'], parts:['alu','reg'], stack:[2,1,0]},
+      {n:6, title:"System recovers or halts",              desc:"If recoverable: IRET returns to program. If catastrophic (power failure): system saves state and halts gracefully.", term:"COA Term: Abort class exception = unrecoverable. Trap class = recoverable. NMI can be either", active:['cpu'], sig:null, bus:[], parts:['cu'], stack:[]},
+    ]
+  },
+  sw:{
+    color:'#7F77DD', label:'Software Interrupt (COA)',
+    steps:[
+      {n:1, title:"Software interrupt — INT instruction",  desc:"Program deliberately executes INT n instruction. This is a synchronous interrupt — always happens at a known, predictable point.", term:"COA Term: Software interrupt = synchronous, deliberate. Generated by INT instruction inside program itself", active:['sw1'], sig:{f:'sw1',t:'cpu',c:'#7F77DD',l:'INT n'}, bus:['ctrl'], parts:['cu'], stack:[]},
+      {n:2, title:"Used for OS system calls",              desc:"Software interrupts are the standard mechanism for user programs to request OS services. INT 21H (DOS), INT 0x80 (Linux), INT 80H (8086).", term:"COA Term: System call interface = user program requests kernel service via software interrupt", active:['sw1','cpu'], sig:null, bus:['ctrl'], parts:['cu','reg'], stack:[]},
+      {n:3, title:"No INTA needed — synchronous",          desc:"Since CPU itself generated the interrupt, no external acknowledge needed. CPU directly uses INT number to index IVT.", term:"COA Term: Synchronous interrupt = CPU-generated, no external handshake (INTA) required", active:['cpu','ivt'], sig:{f:'cpu',t:'ivt',c:'#7F77DD',l:'INT VEC'}, bus:['addr'], parts:['cu','pcc'], stack:[]},
+      {n:4, title:"Save PC + PSW to stack",                desc:"Even though CPU caused it, context still saved. Allows IRET to return to instruction after INT n in the calling program.", term:"COA Term: INT n saves PC of next instruction (not INT n itself) — so IRET continues program", active:['cpu','ram'], sig:{f:'cpu',t:'ram',c:'#D85A30',l:'PUSH'}, bus:['data','addr'], parts:['pcc','flg','spk'], stack:[2,1,0]},
+      {n:5, title:"ISR (OS service routine) executes",     desc:"OS handler executes the requested service — file operation, memory allocation, I/O request, etc. Result placed in register.", term:"COA Term: Trap = software-generated exception used for system calls. Same mechanism as INT", active:['isr'], sig:{f:'cpu',t:'isr',c:'#7F77DD',l:'OS CALL'}, bus:['data'], parts:['alu','reg'], stack:[2,1,0]},
+      {n:6, title:"Exception — internal CPU fault",        desc:"Exception is also a software interrupt — generated internally by CPU on illegal operation: divide by zero, invalid opcode, overflow.", term:"COA Term: Exception = internally generated interrupt. Types: Fault (retry), Trap (continue), Abort (terminate)", active:['sw2','cpu'], sig:{f:'sw2',t:'cpu',c:'#7F77DD',l:'EXCEPT'}, bus:['ctrl'], parts:['alu'], stack:[]},
+      {n:7, title:"IRET returns to calling program",       desc:"After OS service completes, IRET restores saved PC and PSW. Program continues with result available in designated register.", term:"COA Term: Software interrupt is fully transparent to hardware — device controller uninvolved", active:['cpu','ram'], sig:{f:'ram',t:'cpu',c:'#D85A30',l:'IRET'}, bus:['data','addr'], parts:['pcc','flg','spk'], stack:[]},
+    ]
+  },
+  poll:{
+    color:'#1D9E75', label:'Polling vs Vectored Interrupt (COA)',
+    steps:[
+      {n:1, title:"Polling — CPU constantly checks devices", desc:"In polling (programmed I/O), CPU repeatedly asks each device 'Are you ready?' in a loop. Wastes CPU cycles. Simple but inefficient.", term:"COA Term: Polling = CPU-initiated I/O check. Also called busy-wait or programmed I/O. No hardware interrupt needed", active:['io1','io2','io3','cpu'], sig:null, bus:['ctrl'], parts:['cu'], stack:[]},
+      {n:2, title:"Polling loop — device by device",         desc:"CPU checks device 1 → device 2 → device 3 → repeat. Even if no device needs service, CPU still loops. Called polling overhead.", term:"COA Term: Polling overhead = wasted CPU time checking idle devices. Worst-case latency = N device checks", active:['io1','cpu'], sig:{f:'cpu',t:'io1',c:'#1D9E75',l:'POLL?'}, bus:['ctrl'], parts:['cu'], stack:[]},
+      {n:3, title:"Interrupt-driven I/O — device signals CPU", desc:"With interrupt-driven I/O, CPU does useful work. Device interrupts CPU only when it needs service. Far more efficient.", term:"COA Term: Interrupt-driven I/O = device-initiated. CPU freed from polling. Much higher throughput", active:['io2','cpu'], sig:{f:'io2',t:'cpu',c:'#E24B4A',l:'IRQ'}, bus:['ctrl'], parts:['cu'], stack:[]},
+      {n:4, title:"Non-vectored interrupt — CPU polls to find source", desc:"In non-vectored (polled) interrupt, CPU knows interrupt happened but must poll devices in software to find who caused it.", term:"COA Term: Non-vectored interrupt = CPU uses software poll to identify source after interrupt received", active:['cpu','io1','io2'], sig:null, bus:['ctrl'], parts:['cu'], stack:[]},
+      {n:5, title:"Vectored interrupt — device gives vector directly", desc:"In vectored interrupt, device provides its own vector number on data bus during INTA cycle. CPU directly jumps to correct ISR.", term:"COA Term: Vectored interrupt = device identifies itself via vector. No polling needed. Faster response", active:['intc','cpu','ivt'], sig:{f:'intc',t:'cpu',c:'#378ADD',l:'VEC #'}, bus:['data','ctrl'], parts:['cu','pcc'], stack:[]},
+      {n:6, title:"IVT — Interrupt Vector Table",            desc:"IVT is a table in memory. Each entry = 4 bytes = ISR address. Vector number × 4 = IVT offset. CPU uses this to find correct handler.", term:"COA Term: IVT size = 256 vectors × 4 bytes = 1KB. Located at 0000:0000H in 8086. Contains CS:IP of each ISR", active:['ivt','cpu'], sig:{f:'cpu',t:'ivt',c:'#378ADD',l:'VEC×4'}, bus:['addr'], parts:['cu','pcc'], stack:[]},
+      {n:7, title:"Comparison — Polling vs Interrupt",       desc:"Polling: simple, no extra hardware, high CPU overhead, poor for slow devices. Interrupt: efficient, low latency, needs controller hardware.", term:"COA Exam: Know trade-offs! Polling good for fast devices. Interrupt good for slow/unpredictable devices", active:['cpu','io1','intc'], sig:null, bus:[], parts:['cu'], stack:[]},
+    ]
+  },
+  dma:{
+    color:'#85B7EB', label:'DMA — Direct Memory Access (COA)',
+    steps:[
+      {n:1, title:"Problem — CPU does all data transfer",   desc:"Without DMA, CPU must copy each byte: Read from device → store in register → write to memory. For large transfers (disk, network) this wastes CPU.", term:"COA Term: Programmed I/O data transfer = CPU transfers every byte. CPU cannot do other work during transfer", active:['io2','cpu','ram'], sig:{f:'cpu',t:'ram',c:'#378ADD',l:'COPY'}, bus:['data','addr'], parts:['cu','alu'], stack:[]},
+      {n:2, title:"DMA controller — dedicated transfer chip",desc:"DMA controller is a separate hardware unit that can transfer data between device and memory directly, without CPU involvement.", term:"COA Term: DMA = Direct Memory Access. DMA controller takes over bus temporarily to transfer data", active:['dma'], sig:null, bus:[], parts:[], stack:[]},
+      {n:3, title:"CPU programs the DMA controller",        desc:"CPU sets up DMA: writes source address, destination address, transfer count, and direction (read/write) into DMA registers.", term:"COA Term: DMA programming = CPU initializes DMA registers: MAR, WC (word count), control bits", active:['cpu','dma'], sig:{f:'cpu',t:'dma',c:'#85B7EB',l:'SETUP'}, bus:['data','addr','ctrl'], parts:['cu','reg'], stack:[]},
+      {n:4, title:"CPU continues other work",               desc:"After programming DMA, CPU returns to executing other instructions. DMA operates in background — CPU and DMA work in parallel.", term:"COA Term: DMA cycle stealing = DMA steals bus cycles from CPU. CPU must wait (HOLD) when DMA uses bus", active:['cpu'], sig:null, bus:['data','addr'], parts:['cu','alu'], stack:[]},
+      {n:5, title:"DMA requests bus — HOLD signal",         desc:"When device is ready, DMA asserts HOLD pin on CPU. CPU completes current bus cycle then releases the system bus to DMA.", term:"COA Term: HOLD/HLDA = DMA bus request protocol. HOLD=DMA requests bus. HLDA=CPU grants bus (8085 equivalent)", active:['dma','cpu'], sig:{f:'dma',t:'cpu',c:'#85B7EB',l:'HOLD'}, bus:['ctrl'], parts:['cu'], stack:[]},
+      {n:6, title:"CPU grants bus — HLDA signal",           desc:"CPU asserts HLDA (Hold Acknowledge), tristates its bus signals, and releases the bus. DMA now has full control of address+data bus.", term:"COA Term: Bus mastership transferred to DMA. CPU is bus slave during DMA transfer — cannot access memory", active:['cpu','dma'], sig:{f:'cpu',t:'dma',c:'#639922',l:'HLDA'}, bus:['ctrl'], parts:[], stack:[]},
+      {n:7, title:"DMA transfers data directly",            desc:"DMA reads from device and writes to RAM (or vice versa) directly on the system bus. CPU does not touch these bytes at all.", term:"COA Term: DMA modes: Burst mode (all at once), Cycle stealing (one word at a time), Transparent (during CPU idle)", active:['dma','ram','io2'], sig:{f:'io2',t:'ram',c:'#85B7EB',l:'DMA XFER'}, bus:['data','addr'], parts:[], stack:[]},
+      {n:8, title:"DMA complete — interrupt to CPU",        desc:"When transfer count reaches zero, DMA raises an interrupt to CPU. CPU can now process the transferred data in memory.", term:"COA Term: DMA completion interrupt = DMA notifies CPU via IRQ when entire block transfer is done", active:['dma','cpu'], sig:{f:'dma',t:'cpu',c:'#E24B4A',l:'DONE IRQ'}, bus:['ctrl'], parts:['cu'], stack:[]},
+      {n:9, title:"CPU resumes — reads DMA result",         desc:"CPU reclaims bus, handles DMA interrupt, reads transferred data from memory and processes it. Full CPU control restored.", term:"COA Term: DMA advantage: transfers large blocks at memory speed. CPU overhead = only setup + completion", active:['cpu','ram'], sig:{f:'ram',t:'cpu',c:'#378ADD',l:'READ'}, bus:['data','addr'], parts:['cu','alu','reg'], stack:[]},
+    ]
+  },
+  prior:{
+    color:'#D85A30', label:'Priority & Daisy Chain (COA)',
+    steps:[
+      {n:1, title:"Priority interrupt — multiple devices",  desc:"When multiple devices interrupt simultaneously, CPU must decide which to handle first. This requires a priority scheme.", term:"COA Term: Priority interrupt = scheme where higher priority interrupt is serviced before lower priority", active:['io1','io2','io3','cpu'], sig:null, bus:['ctrl'], parts:['cu'], stack:[]},
+      {n:2, title:"Fixed (hardware) priority",              desc:"Priority hardwired in hardware. Higher priority devices connected to higher priority lines. 8085: TRAP>RST7.5>RST6.5>RST5.5>INTR.", term:"COA Term: Fixed priority = predetermined in hardware. 8085 priority order is fixed in silicon", active:['intc','cpu'], sig:{f:'intc',t:'cpu',c:'#D85A30',l:'FIXED'}, bus:['ctrl'], parts:['cu'], stack:[]},
+      {n:3, title:"Daisy chain — hardware priority scheme",  desc:"Devices connected in a chain. INTA signal passes from device 1 → device 2 → device 3. First device in chain that raised IRQ captures INTA, places vector.", term:"COA Term: Daisy chain = serial priority hardware. Device nearest CPU has highest priority. Simple, cheap", active:['io1','io2','intc','cpu'], sig:{f:'cpu',t:'intc',c:'#639922',l:'INTA'}, bus:['ctrl'], parts:['cu'], stack:[]},
+      {n:4, title:"Daisy chain — vector captured by winner", desc:"INTA propagates: Device 1 has IRQ? Yes → captures INTA, places vector on bus, stops chain. Device 2 never sees INTA.", term:"COA Term: Daisy chain advantage: simple hardware. Disadvantage: low priority device starved if high always busy", active:['io1','cpu','ivt'], sig:{f:'io1',t:'cpu',c:'#378ADD',l:'VEC'}, bus:['data'], parts:['cu','pcc'], stack:[]},
+      {n:5, title:"Nested interrupts — higher priority wins", desc:"While CPU handles ISR for device A, a higher priority device B can interrupt the ISR itself. Called nested interrupt or interrupt preemption.", term:"COA Term: Nested interrupt = ISR itself gets interrupted by higher priority. Stack grows with each nesting", active:['cpu','isr'], sig:{f:'io2',t:'cpu',c:'#E24B4A',l:'HI PRIOR'}, bus:['ctrl'], parts:['cu'], stack:[2,1,0]},
+      {n:6, title:"Interrupt masking — selective enabling",  desc:"CPU can mask (disable) specific interrupt lines using mask register. Lower priority ISR masks same-or-lower lines to prevent re-entry.", term:"COA Term: Interrupt mask register = bitmask where 1=masked(disabled), 0=enabled. 8085 uses SIM instruction to set mask", active:['cpu','intc'], sig:null, bus:['ctrl'], parts:['cu','flg'], stack:[]},
+      {n:7, title:"Programmable priority — software control", desc:"Programmable Interrupt Controller (PIC 8259) allows software to assign priority, mask individual lines, and change mode at runtime.", term:"COA Term: PIC 8259 = Programmable Interrupt Controller. 8 IRQ lines, cascadable to 64 lines. Fully software configurable", active:['intc','cpu'], sig:{f:'cpu',t:'intc',c:'#D85A30',l:'PROG'}, bus:['data','ctrl'], parts:['cu'], stack:[]},
+      {n:8, title:"Interrupt latency and response time",     desc:"Latency = time from IRQ to first ISR instruction. Includes: finish instruction + save state + fetch vector + jump. Minimized by hardware design.", term:"COA Term: Interrupt latency = critical real-time metric. Must be bounded for real-time systems. Measured in clock cycles", active:['cpu'], sig:null, bus:[], parts:['cu','pcc'], stack:[]},
+    ]
+  }
+};
+
+const scene=document.getElementById('scene');
+const sidebar=document.getElementById('sidebar');
+const ac=document.getElementById('ac');
+const ctx2=ac.getContext('2d');
+let curT='basic', cur=0, prog=0, raf=null, auto=false, autoT=null;
+
+function resize(){
+  ac.width=scene.offsetWidth;
+  ac.height=scene.offsetHeight;
+  render(cur,1);
+}
+
+function center(id){
+  const el=document.getElementById(id);
+  if(!el) return{x:0,y:0};
+  const sr=scene.getBoundingClientRect();
+  const er=el.getBoundingClientRect();
+  return{x:er.left-sr.left+er.width/2,y:er.top-sr.top+er.height/2};
+}
+
+function drawArr(f,t,color,label,p){
+  const a=center(f),b=center(t);
+  if(!a||!b) return;
+  const dx=b.x-a.x,dy=b.y-a.y;
+  const dist=Math.sqrt(dx*dx+dy*dy)||1;
+  const nx=dx/dist,ny=dy/dist;
+  const sx=a.x+nx*30,sy=a.y+ny*30;
+  const ex=b.x-nx*30,ey=b.y-ny*30;
+  const px=sx+(ex-sx)*p,py=sy+(ey-sy)*p;
+  ctx2.save();
+  ctx2.strokeStyle=color;ctx2.lineWidth=2;ctx2.shadowColor=color;ctx2.shadowBlur=6;ctx2.lineCap='round';
+  ctx2.beginPath();ctx2.moveTo(sx,sy);ctx2.lineTo(px,py);ctx2.stroke();
+  if(p>.08){
+    const ang=Math.atan2(ey-sy,ex-sx);
+    ctx2.fillStyle=color;ctx2.beginPath();
+    ctx2.moveTo(px,py);
+    ctx2.lineTo(px-8*Math.cos(ang-.42),py-8*Math.sin(ang-.42));
+    ctx2.lineTo(px-8*Math.cos(ang+.42),py-8*Math.sin(ang+.42));
+    ctx2.closePath();ctx2.fill();
+  }
+  if(p>.5&&label){
+    const mx=sx+(ex-sx)*.5,my=sy+(ey-sy)*.5;
+    const lx=mx-ny*15,ly=my+nx*15;
+    const tw=ctx2.measureText(label).width;
+    ctx2.shadowBlur=0;
+    ctx2.fillStyle='rgba(6,14,26,.92)';
+    ctx2.fillRect(lx-tw/2-4,ly-7,tw+8,15);
+    ctx2.strokeStyle=color+'44';ctx2.lineWidth=.5;
+    ctx2.strokeRect(lx-tw/2-4,ly-7,tw+8,15);
+    ctx2.fillStyle=color;ctx2.font='500 7.5px sans-serif';
+    ctx2.textAlign='center';ctx2.textBaseline='middle';
+    ctx2.fillText(label,lx,ly);
+  }
+  ctx2.restore();
+}
+
+const hc={basic:'#378ADD',types:'#E24B4A',nmi:'#EF9F27',sw:'#7F77DD',poll:'#1D9E75',dma:'#85B7EB',prior:'#D85A30'};
+
+function render(idx,p){
+  ctx2.clearRect(0,0,ac.width,ac.height);
+  const s=C[curT].steps[idx];
+  if(!s) return;
+  if(s.sig&&p>0) drawArr(s.sig.f,s.sig.t,s.sig.c,s.sig.l,p);
+  document.querySelectorAll('.box').forEach(e=>e.classList.remove('on'));
+  s.active.forEach(id=>document.getElementById(id)?.classList.add('on'));
+  ['cu','alu','reg','pcc','spk','flg'].forEach(id=>document.getElementById(id)?.classList.remove('on'));
+  s.parts.forEach(id=>document.getElementById(id)?.classList.add('on'));
+  const bmap={data:'bld',addr:'bla',ctrl:'blc'};
+  ['bld','bla','blc'].forEach(id=>document.getElementById(id)?.classList.remove('on'));
+  s.bus.forEach(b=>document.getElementById(bmap[b])?.classList.add('on'));
+  ['sf0','sf1','sf2'].forEach((id,i)=>document.getElementById(id)?.classList.toggle('pushed',s.stack.includes(i)));
+  document.getElementById('icnum').textContent=s.n;
+  document.getElementById('icnum').style.background=hc[curT];
+  document.getElementById('ict').textContent=s.title;
+  document.getElementById('icd').textContent=s.desc;
+  document.getElementById('icterm').textContent=s.term||'';
+  document.querySelectorAll('.step-item').forEach((el,i)=>{
+    el.classList.toggle('active',i===idx);
+    el.classList.toggle('done',i<idx);
+  });
+  document.querySelectorAll('.dot').forEach((d,i)=>{
+    d.style.background=i===idx?hc[curT]:i<idx?'#1D9E75':'#1a2a3a';
+    d.style.transform=i===idx?'scale(1.4)':'scale(1)';
+  });
+  const activeItem=document.querySelector('.step-item.active');
+  if(activeItem) activeItem.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+
+function animate(idx){
+  if(raf) cancelAnimationFrame(raf);
+  prog=0;
+  const s=C[curT].steps[idx];
+  if(!s||!s.sig){render(idx,1);return;}
+  function fr(){
+    prog=Math.min(1,prog+0.04);
+    render(idx,prog);
+    if(prog<1) raf=requestAnimationFrame(fr);
+  }
+  raf=requestAnimationFrame(fr);
+}
+
+function gotoStep(i){
+  cur=Math.max(0,Math.min(C[curT].steps.length-1,i));
+  animate(cur);
+}
+function nextStep(){cur<C[curT].steps.length-1?gotoStep(cur+1):gotoStep(0);}
+function prevStep(){cur>0?gotoStep(cur-1):null;}
+function resetAll(){if(auto)toggleAuto();gotoStep(0);}
+
+function buildSidebar(){
+  sidebar.innerHTML='';
+  C[curT].steps.forEach((s,i)=>{
+    const d=document.createElement('div');
+    d.className='step-item';
+    d.innerHTML=`<div class="si-num">Step ${s.n}</div><div class="si-title">${s.title}</div>`;
+    d.onclick=()=>gotoStep(i);
+    sidebar.appendChild(d);
+  });
+}
+
+function buildDots(){
+  const el=document.getElementById('dots');
+  el.innerHTML='';
+  C[curT].steps.forEach((_,i)=>{
+    const d=document.createElement('div');
+    d.className='dot';
+    d.style.cssText='width:6px;height:6px;border-radius:50%;background:#1a2a3a;transition:all .25s;cursor:pointer;';
+    d.onclick=()=>gotoStep(i);
+    el.appendChild(d);
+  });
+}
+
+function sel(t){
+  if(auto) toggleAuto();
+  curT=t; cur=0;
+  document.querySelectorAll('.tnbtn').forEach(b=>b.classList.remove('sel'));
+  const btn=document.getElementById('btn-'+t);
+  if(btn){btn.classList.add('sel');btn.style.background=hc[t]+'33';}
+  buildSidebar(); buildDots(); animate(0);
+}
+
+function toggleAuto(){
+  auto=!auto;
+  const btn=document.getElementById('abtn');
+  if(auto){btn.textContent='⏸ Pause';autoT=setInterval(nextStep,2200);}
+  else{btn.textContent='▶ Auto';clearInterval(autoT);}
+}
+
+window.addEventListener('resize',resize);
+sel('basic');
+setTimeout(resize,80);
+</script>
